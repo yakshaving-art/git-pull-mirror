@@ -1,0 +1,11 @@
+project_name: gitlab-pull-mirror
+builds:
+- goos:
+  - linux
+  - darwin
+  goarch:
+    - amd64
+    - arm
+    - arm64
+  goarm:
+    - "6"
