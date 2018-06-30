@@ -1,0 +1,20 @@
+image: golang:1.10
+stages:
+  - build
+  - test
+
+before_script:
+  - go get -u github.com/golang/dep/cmd/dep
+  - cp -r /builds/user /go/src/gitlab.com/yakshaving.art/
+  - cd /go/src/gitlab.com/yakshaving.art/repo
+  - dep ensure
+
+build:
+  stage: build
+  script:
+    - go build
+
+test:
+  stage: test
+  script:
+    - go test -v -cover ./...
