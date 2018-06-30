@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 
 	"gitlab.com/yakshaving.art/git-pull-mirror/url"
@@ -25,6 +26,7 @@ type RepositoryConfig struct {
 // LoadConfiguration loads the file and parses the origin url, returns a
 // configuration if everything checks up, an error in case of any failure.
 func LoadConfiguration(filename string) (Config, error) {
+	logrus.Debugf("reading configuration file %s", filename)
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed reading configuration file %s: %s", filename, err)
@@ -34,6 +36,7 @@ func LoadConfiguration(filename string) (Config, error) {
 	if err = yaml.Unmarshal(b, &c); err != nil {
 		return c, fmt.Errorf("failed to parse configuration file %s: %s", filename, err)
 	}
+
 	for i, repo := range c.Repostitories {
 		origin, err := url.Parse(repo.Origin)
 		if err != nil {

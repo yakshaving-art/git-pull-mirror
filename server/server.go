@@ -11,14 +11,22 @@ import (
 type WebHooksServer struct {
 	wg *sync.WaitGroup
 
-	config  config.Config
-	running bool
+	opts         WebHooksServerOptions
+	repositories config.Config
+	running      bool
+}
+
+// WebHooksServerOptions holds server configuration options
+type WebHooksServerOptions struct {
+	GitTimeoutSeconds int
+	RepositoriesPath  string
 }
 
 // New returns a new unconfigured webhooks server
-func New() *WebHooksServer {
+func New(opts WebHooksServerOptions) *WebHooksServer {
 	return &WebHooksServer{
-		wg: &sync.WaitGroup{},
+		wg:   &sync.WaitGroup{},
+		opts: opts,
 	}
 }
 
