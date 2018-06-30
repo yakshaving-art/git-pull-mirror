@@ -38,7 +38,7 @@ func TestLoadingInvalidConfiguration(t *testing.T) {
 		{
 			"unmarshable config",
 			"test-fixtures/unmarshable-config.yml",
-			"failed to parse configuration file test-fixtures/unmarshable-config.yml: yaml: line 2: mapping values are not allowed in this context",
+			"failed to parse configuration file test-fixtures/unmarshable-config.yml: yaml: line 3: mapping values are not allowed in this context",
 		},
 		{
 			"non existing file",
