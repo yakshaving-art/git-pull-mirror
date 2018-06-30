@@ -1,0 +1,6 @@
+---
+repositories:
+- origin: https://github.com/yakshaving-art/git-pull-mirror.git
+  target: git@gitlab.com:yakshaving.art/git-pull-mirror.git
+- origin: https://user:password@github.com/group/user
+  target: git@gitlab.com:other-group/other-user

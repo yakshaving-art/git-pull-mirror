@@ -1,4 +1,4 @@
-package git
+package url
 
 import (
 	"errors"
@@ -24,13 +24,13 @@ type GitURL struct {
 }
 
 func (g GitURL) String() string {
-	return fmt.Sprintf("%s/%s/%s", g.Domain, g.g.Owner, g.Name)
+	return fmt.Sprintf("%s/%s/%s", g.Domain, g.Owner, g.Name)
 }
 
 // Parse gets a url string and returns a URL object, or an error
-func Parse(uri string) (*GitURL, error) {
+func Parse(uri string) (GitURL, error) {
 	if uri == "" {
-		return nil, ErrInvalidURL
+		return GitURL{}, ErrInvalidURL
 	}
 	if strings.HasPrefix(uri, "git@") {
 		return parseGitSchemaURL(uri)
@@ -38,7 +38,7 @@ func Parse(uri string) (*GitURL, error) {
 	if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
 		return parseHTTPSchema(uri)
 	}
-	return nil, ErrInvalidURL
+	return GitURL{}, ErrInvalidURL
 }
 
 // ToPath creates a path with the domain, owner and name
@@ -46,27 +46,25 @@ func (g GitURL) ToPath() string {
 	return path.Join(g.Domain, g.Owner, g.Name)
 }
 
-func parseGitSchemaURL(uri string) (*GitURL, error) {
+func parseGitSchemaURL(uri string) (GitURL, error) {
 	if !gitURLParser.MatchString(uri) {
-		return nil, ErrInvalidURL
+		return GitURL{}, ErrInvalidURL
 	}
 
 	matches := gitURLParser.FindStringSubmatch(uri)
 	if len(matches) != 3 {
-		return nil, ErrInvalidURL
+		return GitURL{}, ErrInvalidURL
 	}
-	fmt.Printf("Found matches %#v\n", matches)
 
 	domain := matches[1]
 	path := matches[2]
 
 	owner, name, err := parsePath(path)
 	if err != nil {
-		return nil, err
+		return GitURL{}, err
 	}
-	fmt.Printf("Found owner %s, name %s\n", owner, name)
 
-	return &GitURL{
+	return GitURL{
 		URI:    uri,
 		Domain: domain,
 		Owner:  owner,
@@ -74,18 +72,18 @@ func parseGitSchemaURL(uri string) (*GitURL, error) {
 	}, nil
 }
 
-func parseHTTPSchema(uri string) (*GitURL, error) {
+func parseHTTPSchema(uri string) (GitURL, error) {
 	u, err := url.Parse(uri)
 	if err != nil {
-		return nil, err
+		return GitURL{}, err
 	}
 
 	owner, name, err := parsePath(u.Path)
 	if err != nil {
-		return nil, err
+		return GitURL{}, err
 	}
 
-	return &GitURL{
+	return GitURL{
 		URI:    uri,
 		Domain: u.Hostname(),
 		Owner:  owner,

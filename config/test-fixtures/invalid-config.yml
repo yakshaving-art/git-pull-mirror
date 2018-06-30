@@ -1,0 +1,4 @@
+---
+repositories:
+- origin: https://github.com/yakshaving-art
+  target: git@gitlab.com:yakshaving.art/git-pull-mirror.git

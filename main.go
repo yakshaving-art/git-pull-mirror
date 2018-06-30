@@ -2,10 +2,8 @@ package main
 
 import (
 	"github.com/sirupsen/logrus"
-	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	// yaml "gopkg.in/yaml.v2"
 	"flag"
@@ -13,12 +11,15 @@ import (
 
 var (
 	address             = flag.String("listen.address", "localhost:9092", "address in which to listen for webhooks")
-	configFile          = flag.String("conf", "mirrors.yaml", "configuration file")
+	configFile          = flag.String("config.file", "mirrors.yaml", "configuration file")
 	skipWebhookCreation = flag.Bool("skip.webhooks.creation", false, "don't create webhooks after loading the configuration")
+	repoPath            = flag.String("repostories.path", ".", "local path in which to store cloned repositories")
 )
 
 func init() {
-	logrus.SetFormatter(&logrus.TextFormatter{})
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
 }
 
 func main() {

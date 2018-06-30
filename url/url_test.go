@@ -1,7 +1,7 @@
-package git_test
+package url_test
 
 import (
-	"gitlab.com/yakshaving.art/git-pull-mirror/git"
+	"gitlab.com/yakshaving.art/git-pull-mirror/url"
 	"reflect"
 	"testing"
 )
@@ -21,7 +21,7 @@ func Test_ParseGitHubURL(t *testing.T) {
 			"",
 			"",
 			"",
-			git.ErrInvalidURL,
+			url.ErrInvalidURL,
 		},
 		{
 			"GitHub Git URL",
@@ -83,7 +83,7 @@ func Test_ParseGitHubURL(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			url, err := git.Parse(tc.url)
+			url, err := url.Parse(tc.url)
 			assertEquals(t, tc.expectedError, err)
 			if err == nil {
 				assertEquals(t, tc.expectedPath, url.ToPath())
