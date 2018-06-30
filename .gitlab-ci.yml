@@ -17,5 +17,7 @@ build:
 
 test:
   stage: test
+  coverage: '/^coverage:\s+(\d+.\d+)%\s+of statements$/'
   script:
     - go test -v -cover ./...
+
