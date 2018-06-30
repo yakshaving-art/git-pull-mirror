@@ -23,3 +23,10 @@ func TestParsingPayload(t *testing.T) {
 		t.Fatalf("unexpected event 0, expected %s, got %s", "push", hook.Hook.Events[0])
 	}
 }
+
+func TestParsingInvalidPayloadFails(t *testing.T) {
+	_, err := parsePayload("...")
+	if err == nil {
+		t.Fatalf("Should have failed to parse payload")
+	}
+}
