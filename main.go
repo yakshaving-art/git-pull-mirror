@@ -1,65 +1,74 @@
 package main
 
 import (
+	"flag"
 	"github.com/sirupsen/logrus"
+	"gitlab.com/yakshaving.art/git-pull-mirror/config"
+	"gitlab.com/yakshaving.art/git-pull-mirror/server"
 	"os"
 	"os/signal"
 	"syscall"
-	// yaml "gopkg.in/yaml.v2"
-	"flag"
 )
 
 var (
-	address             = flag.String("listen.address", "localhost:9092", "address in which to listen for webhooks")
-	configFile          = flag.String("config.file", "mirrors.yaml", "configuration file")
-	skipWebhookCreation = flag.Bool("skip.webhooks.creation", false, "don't create webhooks after loading the configuration")
-	repoPath            = flag.String("repostories.path", ".", "local path in which to store cloned repositories")
+	address    = flag.String("listen.address", "localhost:9092", "address in which to listen for webhooks")
+	configFile = flag.String("config.file", "mirrors.yml", "configuration file")
+	dryrun     = flag.Bool("dryrun", false, "execute configuration loading, don't actually do anything")
+	repoPath   = flag.String("repostories.path", ".", "local path in which to store cloned repositories")
+	debug      = flag.Bool("debug", false, "enable debugging log level")
 )
 
-func init() {
+func main() {
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 	})
-}
 
-func main() {
 	flag.Parse()
+
+	if *debug {
+		toggleDebugLogLevel()
+	}
+
+	c, err := config.LoadConfiguration(*configFile)
+	if err != nil {
+		logrus.Fatalf("Failed to load configuration: %s", err)
+	}
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGHUP, syscall.SIGINT, syscall.SIGUSR1)
 
-	loadConfiguration(*configFile)
-	createWebHooks(*skipWebhookCreation)
-
-	server := NewWebHooksServer()
-	go server.Run(*address)
+	s := server.New()
+	s.Configure(c)
+	go s.Run(*address)
 
 	for sig := range signalCh {
 		switch sig {
 		case syscall.SIGHUP:
 			logrus.Info("Reloading the configuration")
-			loadConfiguration(*configFile)
-			createWebHooks(*skipWebhookCreation)
+			c, err := config.LoadConfiguration(*configFile)
+			if err != nil {
+				logrus.Errorf("Failed to load configuration: %s", err)
+				continue
+			}
+			s.Configure(c)
 
 		case syscall.SIGUSR1:
-			logrus.Infof("Printing running configuration")
+			logrus.Info("toggling debug log level")
+			toggleDebugLogLevel()
 
 		case syscall.SIGINT:
 			logrus.Info("Shutting down gracefully")
-			server.Shutdown()
+			s.Shutdown()
 			os.Exit(0)
 		}
 	}
 }
 
-func loadConfiguration(confgFile string) {
-
-}
-
-func createWebHooks(skipWebhookCreation bool) {
-	if skipWebhookCreation {
-		logrus.Infof("Skipping creationg of webhooks")
-		return
+func toggleDebugLogLevel() {
+	switch logrus.GetLevel() {
+	case logrus.InfoLevel:
+		logrus.SetLevel(logrus.DebugLevel)
+	default:
+		logrus.SetLevel(logrus.InfoLevel)
 	}
-
 }
