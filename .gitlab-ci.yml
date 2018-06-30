@@ -5,8 +5,8 @@ stages:
 
 before_script:
   - go get -u github.com/golang/dep/cmd/dep
-  - cp -r /builds/user /go/src/gitlab.com/yakshaving.art/
-  - cd /go/src/gitlab.com/yakshaving.art/repo
+  - cp -r /builds/yakshaving.art /go/src/gitlab.com/yakshaving.art/
+  - cd /go/src/gitlab.com/yakshaving.art/gitlab-pull-mirror
   - dep ensure
 
 build:
