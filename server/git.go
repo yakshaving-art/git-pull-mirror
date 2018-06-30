@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -25,45 +26,54 @@ const (
 )
 
 type gitClient struct {
-	localPath string
+	localPath      string
+	timeoutSeconds time.Duration
+
+	repositories []Repository
+	wg           *sync.WaitGroup
 }
 
-func newClient(path string) gitClient {
+func newClient(localPath string, timeoutSeconds int) gitClient {
 	return gitClient{
-		localPath: path,
+		localPath:      localPath,
+		timeoutSeconds: time.Duration(timeoutSeconds) * time.Second,
 	}
 }
 
-func (g gitClient) PathFor(origin url.GitURL) string {
+func (g gitClient) pathFor(origin url.GitURL) string {
 	return filepath.Join(g.localPath, origin.ToPath())
 }
 
 // CloneOrOpen ensures that the repo exists in the indicated path
 func (g gitClient) CloneOrOpen(origin url.GitURL, target string) (Repository, error) {
-	r, err := git.PlainOpen(g.PathFor(origin))
+	r, err := git.PlainOpen(g.pathFor(origin))
 	if err == git.ErrRepositoryNotExists {
-		logrus.Debugf("Could not find repository %s, cloning into %s", origin, g.PathFor(origin))
+		logrus.Debugf("Could not find repository %s, cloning into %s", origin, g.pathFor(origin))
 
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), g.timeoutSeconds*time.Second)
 		defer cancel()
 
-		r, err = git.PlainCloneContext(ctx, g.PathFor(origin), true, &git.CloneOptions{
+		r, err = git.PlainCloneContext(ctx, g.pathFor(origin), true, &git.CloneOptions{
 			URL:          origin.URI,
 			SingleBranch: false,
 			RemoteName:   OriginRemote,
 		})
-	}
+		if err != nil {
+			return Repository{}, fmt.Errorf("failed to clone %s: %s", origin, err)
+		}
 
-	if err != nil {
-		return Repository{}, fmt.Errorf("failed to clone or open repo %s: %s", g, err)
-	}
+		_, err = r.CreateRemote(&config.RemoteConfig{
+			Name: TargetRemote,
+			URLs: []string{target},
+		})
+		if err != nil {
+			return Repository{}, fmt.Errorf("failed to add target remote %s to repo %s: %s", target, origin, err)
+		}
 
-	_, err = r.CreateRemote(&config.RemoteConfig{
-		Name: TargetRemote,
-		URLs: []string{target},
-	})
-	if err != nil {
-		return Repository{}, fmt.Errorf("failed to add target remote %s to repo %s: %s", target, g, err)
+	} else if err != nil {
+		return Repository{}, fmt.Errorf("failed to open repo %s: %s", origin, err)
+	} else {
+		logrus.Debugf("repository %s already exists locally", origin)
 	}
 
 	return Repository{

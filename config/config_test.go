@@ -19,6 +19,16 @@ func TestLoadingValidConfiguration(t *testing.T) {
 	assertEquals(t, "git@gitlab.com:other-group/other-user", c.Repostitories[1].Target)
 }
 
+func TestLoadingEmptyConfiguration(t *testing.T) {
+	c, err := config.LoadConfiguration("test-fixtures/empty-config.yml")
+	if err != nil {
+		t.Fatalf("Failed to load valid configuration: %s", err)
+	}
+	if len(c.Repostitories) != 0 {
+		t.Fatalf("Invalid configuration repositories length: expected 0, got %d", len(c.Repostitories))
+	}
+}
+
 func TestLoadingInvalidConfiguration(t *testing.T) {
 	tt := []struct {
 		name     string

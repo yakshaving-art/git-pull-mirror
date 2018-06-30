@@ -13,7 +13,7 @@ import (
 var (
 	address        = flag.String("listen.address", "localhost:9092", "address in which to listen for webhooks")
 	configFile     = flag.String("config.file", "mirrors.yml", "configuration file")
-	repoPath       = flag.String("repostories.path", ".", "local path in which to store cloned repositories")
+	repoPath       = flag.String("repositories.path", ".", "local path in which to store cloned repositories")
 	timeoutSeconds = flag.Int("git.timeout.seconds", 60, "git operations timeout in seconds, defaults to 60")
 	debug          = flag.Bool("debug", false, "enable debugging log level")
 	dryrun         = flag.Bool("dryrun", false, "execute configuration loading, don't actually do anything")
