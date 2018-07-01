@@ -56,3 +56,5 @@ dockers:
   goarch: arm64
   binary: git-pull-mirror
   dockerfile: Dockerfile.arm64
+env_files:
+  github_token: ~/.goreleaser.token
