@@ -15,12 +15,21 @@ var ErrInvalidURL = errors.New("Invalid URL")
 var gitURLParser = regexp.MustCompile("^git@([\\w\\.]+):(.+)(?:\\.git)?$")
 var gitPathParser = regexp.MustCompile("^/?(.+?)/(.+?)(?:\\.git)?$")
 
+// Transport constants
+const (
+	GitSSHTransport  = "ssh"
+	GitHTTPTransport = "http"
+)
+
 // GitURL is a url that points to a git repo
 type GitURL struct {
-	URI    string
-	Domain string
-	Owner  string
-	Name   string
+	URI       string
+	Transport string
+	Username  string
+	Password  string
+	Domain    string
+	Owner     string
+	Name      string
 }
 
 func (g GitURL) String() string {
@@ -65,10 +74,12 @@ func parseGitSchemaURL(uri string) (GitURL, error) {
 	}
 
 	return GitURL{
-		URI:    uri,
-		Domain: domain,
-		Owner:  owner,
-		Name:   name,
+		Transport: GitSSHTransport,
+		URI:       uri,
+		Domain:    domain,
+		Username:  "git",
+		Owner:     owner,
+		Name:      name,
 	}, nil
 }
 
@@ -83,11 +94,20 @@ func parseHTTPSchema(uri string) (GitURL, error) {
 		return GitURL{}, err
 	}
 
+	var username, password string
+	if u.User != nil {
+		username = u.User.Username()
+		password, _ = u.User.Password()
+	}
+
 	return GitURL{
-		URI:    uri,
-		Domain: u.Hostname(),
-		Owner:  owner,
-		Name:   name,
+		Transport: GitHTTPTransport,
+		URI:       uri,
+		Domain:    u.Hostname(),
+		Username:  username,
+		Password:  password,
+		Owner:     owner,
+		Name:      name,
 	}, nil
 
 }

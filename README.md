@@ -20,32 +20,37 @@ directed to `https://public-hostname/hooks/:owner/:name`
 
 ## Environment variables
 
-* **GITHUB_USERNAME** is the username that will register the webhooks
-* **GITHUB_TOKEN** is the token used as a password to register the webhooks
+- **SSH_KEY** is the private ssh key used to talk to the remotes. It needs to
+    be explicitly set, there will be no assumptions made around which ssh key to
+    use.
+- **GITHUB_USER** github username, used to configure the webhooks through the
+    API.
+- **GITHUB_TOKEN** github token, used as the password to configure the
+    webhooks through the API
 
 ## Options
 
-```
--config.file string
+- -config.file string
     configuration file (default "mirrors.yml")
--debug
+- -debug
     enable debugging log level
--dryrun
+- -dryrun
     execute configuration loading then exit. Don't actually do anything
--git.timeout.seconds int
+- -git.timeout.seconds int
     git operations timeout in seconds, defaults to 60 (default 60)
--listen.address string
+- -listen.address string
     address in which to listen for webhooks (default "localhost:9092")
--repositories.path string
+- -repositories.path string
     local path in which to store cloned repositories (default ".")
-```
+- -sshkey string
+    ssh key to use to identify to remotes
 
 ## Signals
 
-`git-pull-mirrors` supports at least 3 signals:
+**git-pull-mirrors** supports at least 3 signals:
 
-* **SIGINT** will perform a graceful shutdown in which it will stop accepting
-  webhooks, then finish all the pending work to then exit.
-* **SIGHUP** will reload the mirrors.yml configuration file and apply it
-  without downtime. If configuration parsing fails, it will not be applied.
-* **SIGUSR1** will toggle log debugging on and off.
+- **SIGINT** will perform a graceful shutdown in which it will stop accepting
+    webhooks, then finish all the pending work to then exit.
+- **SIGHUP** will reload the mirrors.yml configuration file and apply it
+    without downtime. If configuration parsing fails, it will not be applied.
+- **SIGUSR1** will toggle log debugging on and off.

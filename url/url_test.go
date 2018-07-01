@@ -8,15 +8,19 @@ import (
 
 func Test_ParseGitHubURL(t *testing.T) {
 	tt := []struct {
-		name          string
-		url           string
-		expectedPath  string
-		expectedOwner string
-		expectedName  string
-		expectedError error
+		name             string
+		url              string
+		expectedPath     string
+		expectedOwner    string
+		expectedName     string
+		expectedUsername string
+		expectedPassword string
+		expectedError    error
 	}{
 		{
 			"Invalid URL",
+			"",
+			"",
 			"",
 			"",
 			"",
@@ -29,6 +33,8 @@ func Test_ParseGitHubURL(t *testing.T) {
 			"github.com/gomeeseeks/meeseeks-box",
 			"gomeeseeks",
 			"meeseeks-box",
+			"git",
+			"",
 			nil,
 		},
 		{
@@ -37,6 +43,8 @@ func Test_ParseGitHubURL(t *testing.T) {
 			"github.com/gomeeseeks/meeseeks-box",
 			"gomeeseeks",
 			"meeseeks-box",
+			"git",
+			"",
 			nil,
 		},
 		{
@@ -45,6 +53,8 @@ func Test_ParseGitHubURL(t *testing.T) {
 			"github.com/gomeeseeks/meeseeks-box",
 			"gomeeseeks",
 			"meeseeks-box",
+			"",
+			"",
 			nil,
 		},
 		{
@@ -53,6 +63,8 @@ func Test_ParseGitHubURL(t *testing.T) {
 			"github.com/gomeeseeks/meeseeks-box",
 			"gomeeseeks",
 			"meeseeks-box",
+			"",
+			"",
 			nil,
 		},
 		{
@@ -61,6 +73,8 @@ func Test_ParseGitHubURL(t *testing.T) {
 			"github.com/gomeeseeks/meeseeks-box",
 			"gomeeseeks",
 			"meeseeks-box",
+			"",
+			"",
 			nil,
 		},
 		{
@@ -69,6 +83,8 @@ func Test_ParseGitHubURL(t *testing.T) {
 			"gitlab.com/group/subgroup/project",
 			"group",
 			"subgroup/project",
+			"",
+			"",
 			nil,
 		},
 		{
@@ -77,6 +93,18 @@ func Test_ParseGitHubURL(t *testing.T) {
 			"gitlab.com/group/subgroup/project",
 			"group",
 			"subgroup/project",
+			"",
+			"",
+			nil,
+		},
+		{
+			"GitLab URL with username and password",
+			"http://username:password@gitlab.com/group/project",
+			"gitlab.com/group/project",
+			"group",
+			"project",
+			"username",
+			"password",
 			nil,
 		},
 	}
@@ -89,6 +117,8 @@ func Test_ParseGitHubURL(t *testing.T) {
 				assertEquals(t, tc.expectedPath, url.ToPath())
 				assertEquals(t, tc.expectedOwner, url.Owner)
 				assertEquals(t, tc.expectedName, url.Name)
+				assertEquals(t, tc.expectedUsername, url.Username)
+				assertEquals(t, tc.expectedPassword, url.Password)
 			}
 		})
 	}
