@@ -126,28 +126,21 @@ func (ws *WebHooksServer) Run(address string) {
 		}
 
 		if err := r.ParseForm(); err != nil {
+			logrus.Debugf("Failed to parse form on request %#v", r)
 			http.Error(w, fmt.Sprintf("bad request: %s", err), http.StatusBadRequest)
 			return
 		}
 
-		// logrus.Debugf("form: %#v", r.Form)
-
-		// defer r.Body.Close()
-		// body, err := ioutil.ReadAll(r.Body)
-		// if err != nil {
-		// 	http.Error(w, fmt.Sprintf("can't read body: %s", err), http.StatusBadRequest)
-		// 	return
-		// }
-		// logrus.Debugf("body: %#v", string(body))
-
 		payload := r.FormValue("payload")
 		if payload == "" {
-			http.Error(w, "no payload in the form", http.StatusBadRequest)
+			logrus.Debugf("No payload in form: %#v", r.Form)
+			http.Error(w, "no payload in form", http.StatusBadRequest)
 			return
 		}
 
 		hookPayload, err := github.ParseHookPayload(payload)
 		if err != nil {
+			logrus.Debugf("Failed to parse hook payload: %s - %s", err, payload)
 			http.Error(w, fmt.Sprintf("bad request: %s", err), http.StatusBadRequest)
 			return
 		}
@@ -171,7 +164,9 @@ func (ws *WebHooksServer) Run(address string) {
 			}
 			if err := repo.Push(); err != nil {
 				logrus.Errorf("failed to push repo %s to %s: %s", repo.origin, repo.target, err)
+				return
 			}
+			logrus.Debugf("updated repository %s in %s", repo.origin, repo.target)
 		}(repo)
 
 		w.WriteHeader(http.StatusAccepted)

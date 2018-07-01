@@ -29,8 +29,13 @@ type Repository struct {
 
 // Remotes names
 const (
+	OriginRemote = "origin"
 	TargetRemote = "target"
 )
+
+func newGitClient(ops WebHooksServerOptions) gitClient {
+	return gitClient{ops: ops}
+}
 
 type gitClient struct {
 	ops WebHooksServerOptions
@@ -39,8 +44,9 @@ type gitClient struct {
 	wg           *sync.WaitGroup
 }
 
-func newGitClient(ops WebHooksServerOptions) gitClient {
-	return gitClient{ops: ops}
+// GitTimeoutSeconds returns the duration in which the context for a git operation will timeout
+func (g gitClient) GitTimeoutSeconds() time.Duration {
+	return time.Duration(g.ops.GitTimeoutSeconds) * time.Second
 }
 
 // CloneOrPull ensures that the repo exists in the indicated path
@@ -71,7 +77,7 @@ func (g gitClient) clone(origin url.GitURL, target url.GitURL) (Repository, erro
 		return Repository{}, fmt.Errorf("failed set up auth to clone origin %s: %s", origin, err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(g.ops.GitTimeoutSeconds)*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), g.GitTimeoutSeconds())
 	defer cancel()
 
 	r, err := git.PlainCloneContext(ctx, g.pathFor(origin), true, &git.CloneOptions{
@@ -142,10 +148,13 @@ func (r Repository) Fetch() error {
 		return fmt.Errorf("failed set up auth to fetch from origin %s: %s", r.origin, err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), r.client.GitTimeoutSeconds())
+	defer cancel()
+
 	logrus.Debugf("fetching %s", r.origin)
-	err = r.repo.Fetch(&git.FetchOptions{
+	err = r.repo.FetchContext(ctx, &git.FetchOptions{
 		Auth:       auth,
-		RemoteName: "origin",
+		RemoteName: OriginRemote,
 	})
 	if err == git.NoErrAlreadyUpToDate {
 		logrus.Debugf("%s is already up to date", r.origin)
@@ -156,5 +165,22 @@ func (r Repository) Fetch() error {
 
 // Push pushes to target
 func (r Repository) Push() error {
-	return nil
+	auth, err := r.client.authMethod(r.target)
+	if err != nil {
+		return fmt.Errorf("failed set up auth to push to target %s: %s", r.target, err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), r.client.GitTimeoutSeconds())
+	defer cancel()
+
+	logrus.Debugf("pushing to %s", r.target)
+	err = r.repo.PushContext(ctx, &git.PushOptions{
+		Auth:       auth,
+		RemoteName: TargetRemote,
+	})
+	if err == git.NoErrAlreadyUpToDate {
+		logrus.Debugf("%s is already up to date", r.target)
+		return nil
+	}
+	return err
 }
