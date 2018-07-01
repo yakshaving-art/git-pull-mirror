@@ -168,20 +168,20 @@ func (ws *WebHooksServer) Run(address string) {
 			startFetch := time.Now()
 			if err := repo.Fetch(); err != nil {
 				logrus.Errorf("failed to fetch repo %s: %s", repo.origin, err)
-				metrics.HooksFailedTotal.WithLabelValues(repo.origin.ToKey()).Inc()
+				metrics.HooksFailedTotal.WithLabelValues(repo.origin.ToPath()).Inc()
 				return
 			}
-			metrics.GitLatencySecondsTotal.WithLabelValues("fetch", repo.origin.ToKey()).Observe(((time.Now().Sub(startFetch)).Seconds()))
-			metrics.HooksUpdatedTotal.WithLabelValues(repo.origin.ToKey()).Inc()
+			metrics.GitLatencySecondsTotal.WithLabelValues("fetch", repo.origin.ToPath()).Observe(((time.Now().Sub(startFetch)).Seconds()))
+			metrics.HooksUpdatedTotal.WithLabelValues(repo.origin.ToPath()).Inc()
 
 			startPush := time.Now()
 			if err := repo.Push(); err != nil {
 				logrus.Errorf("failed to push repo %s to %s: %s", repo.origin, repo.target, err)
-				metrics.HooksFailedTotal.WithLabelValues(repo.target.ToKey()).Inc()
+				metrics.HooksFailedTotal.WithLabelValues(repo.target.ToPath()).Inc()
 				return
 			}
-			metrics.GitLatencySecondsTotal.WithLabelValues("push", repo.origin.ToKey()).Observe(((time.Now().Sub(startPush)).Seconds()))
-			metrics.HooksUpdatedTotal.WithLabelValues(repo.target.ToKey()).Inc()
+			metrics.GitLatencySecondsTotal.WithLabelValues("push", repo.origin.ToPath()).Observe(((time.Now().Sub(startPush)).Seconds()))
+			metrics.HooksUpdatedTotal.WithLabelValues(repo.target.ToPath()).Inc()
 
 			logrus.Debugf("updated repository %s in %s", repo.origin, repo.target)
 		}(repo)
