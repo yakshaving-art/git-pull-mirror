@@ -3,10 +3,12 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 
 	"github.com/sirupsen/logrus"
 	"gitlab.com/yakshaving.art/git-pull-mirror/config"
+	"gitlab.com/yakshaving.art/git-pull-mirror/github"
 )
 
 // WebHooksServer is the server that will listen for webhooks calls and handle them
@@ -16,12 +18,15 @@ type WebHooksServer struct {
 	opts         WebHooksServerOptions
 	repositories config.Config
 	running      bool
+	callbackPath string
 }
 
 // WebHooksServerOptions holds server configuration options
 type WebHooksServerOptions struct {
 	GitTimeoutSeconds int
 	RepositoriesPath  string
+	SSHPrivateKey     string
+	GitHubClientOpts  github.ClientOpts
 }
 
 // New returns a new unconfigured webhooks server
@@ -37,9 +42,17 @@ func New(opts WebHooksServerOptions) *WebHooksServer {
 // repo is non existing.
 func (ws *WebHooksServer) Configure(c config.Config) error {
 	logrus.Debug("loading configuration")
-	g := newClient(ws.opts.RepositoriesPath, ws.opts.GitTimeoutSeconds)
 
-	errors := make(chan error)
+	callback, err := url.Parse(ws.opts.GitHubClientOpts.CallbackURL)
+	if err != nil {
+		return fmt.Errorf("could not parse callback url %s: %s", ws.opts.GitHubClientOpts.CallbackURL, err)
+	}
+	ws.callbackPath = callback.Path
+
+	g := newGitClient(ws.opts)
+	gh := github.New(ws.opts.GitHubClientOpts)
+
+	errors := make(chan error, len(c.Repostitories))
 
 	wg := &sync.WaitGroup{}
 	for _, r := range c.Repostitories {
@@ -47,9 +60,20 @@ func (ws *WebHooksServer) Configure(c config.Config) error {
 		go func(r config.RepositoryConfig) {
 			defer wg.Done()
 
-			_, err := g.CloneOrOpen(r.OriginURL, r.Target)
+			repo, err := g.CloneOrOpen(r.OriginURL, r.TargetURL)
 			if err != nil {
-				errors <- fmt.Errorf("%s: %s", r.OriginURL, err)
+				errors <- fmt.Errorf("failed to clone or open %s: %s", r.OriginURL, err)
+				return
+			}
+
+			if err = repo.Fetch(); err != nil {
+				errors <- fmt.Errorf("failed to fetch %s: %s", r.OriginURL, err)
+				return
+			}
+
+			if err = gh.RegisterWebhook(r.OriginURL); err != nil {
+				errors <- fmt.Errorf("failed to register webhooks for %s: %s", r.OriginURL, err)
+				return
 			}
 		}(r)
 	}
@@ -75,9 +99,9 @@ func (ws *WebHooksServer) Configure(c config.Config) error {
 // Run starts the execution of the server, forever
 func (ws *WebHooksServer) Run(address string) {
 	ws.running = true
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(ws.callbackPath, func(w http.ResponseWriter, r *http.Request) {
 		if !ws.running {
-			http.Error(w, "Server is stopping", http.StatusServiceUnavailable)
+			http.Error(w, "server is shutting down", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -92,16 +116,18 @@ func (ws *WebHooksServer) Run(address string) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	logrus.Infof("Listening on %s", address)
+	logrus.Infof("starting listener on %s", address)
 	if err := http.ListenAndServe(address, nil); err != nil {
-		logrus.Fatalf("Failed to start http server: %s", err)
+		logrus.Fatalf("failed to start http server: %s", err)
 	}
 }
 
 // Shutdown performs a graceful shutdown of the webhooks server
 func (ws *WebHooksServer) Shutdown() {
 	ws.running = false
+
 	// Wait for all the ongoing requests to finish
 	ws.wg.Wait()
-	logrus.Infof("Server stopped")
+
+	logrus.Infof("server stopped")
 }

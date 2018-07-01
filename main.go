@@ -4,6 +4,7 @@ import (
 	"flag"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/yakshaving.art/git-pull-mirror/config"
+	"gitlab.com/yakshaving.art/git-pull-mirror/github"
 	"gitlab.com/yakshaving.art/git-pull-mirror/server"
 	"os"
 	"os/signal"
@@ -13,10 +14,15 @@ import (
 var (
 	address        = flag.String("listen.address", "localhost:9092", "address in which to listen for webhooks")
 	configFile     = flag.String("config.file", "mirrors.yml", "configuration file")
-	repoPath       = flag.String("repositories.path", ".", "local path in which to store cloned repositories")
-	timeoutSeconds = flag.Int("git.timeout.seconds", 60, "git operations timeout in seconds, defaults to 60")
+	callbackURL    = flag.String("callback.url", os.Getenv("CALLBACK_URL"), "callback url to report to github for webhooks, must include schema and domain")
 	debug          = flag.Bool("debug", false, "enable debugging log level")
 	dryrun         = flag.Bool("dryrun", false, "execute configuration loading, don't actually do anything")
+	githubUser     = flag.String("github.user", os.Getenv("GITHUB_USER"), "github username, used to configure the webhooks through the API")
+	githubToken    = flag.String("github.token", os.Getenv("GITHUB_TOKEN"), "github token, used as the password to configure the webhooks through the API")
+	githubURL      = flag.String("github.url", "https://api.github.com/hub", "api url to register webhooks")
+	repoPath       = flag.String("repositories.path", ".", "local path in which to store cloned repositories")
+	sshkey         = flag.String("sshkey", os.Getenv("SSH_KEY"), "ssh key to use to identify to remotes")
+	timeoutSeconds = flag.Int("git.timeout.seconds", 60, "git operations timeout in seconds")
 )
 
 func main() {
@@ -42,6 +48,13 @@ func main() {
 	s := server.New(server.WebHooksServerOptions{
 		GitTimeoutSeconds: *timeoutSeconds,
 		RepositoriesPath:  *repoPath,
+		SSHPrivateKey:     *sshkey,
+		GitHubClientOpts: github.ClientOpts{
+			User:        *githubUser,
+			Token:       *githubToken,
+			GitHubURL:   *githubURL,
+			CallbackURL: *callbackURL,
+		},
 	})
 
 	if *dryrun {

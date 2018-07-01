@@ -20,7 +20,8 @@ type RepositoryConfig struct {
 	Origin    string `yaml:"origin"`
 	OriginURL url.GitURL
 
-	Target string `yaml:"target"`
+	Target    string `yaml:"target"`
+	TargetURL url.GitURL
 }
 
 // LoadConfiguration loads the file and parses the origin url, returns a
@@ -43,6 +44,12 @@ func LoadConfiguration(filename string) (Config, error) {
 			return c, fmt.Errorf("failed to parse origin url %s: %s", repo.Origin, err)
 		}
 		c.Repostitories[i].OriginURL = origin
+
+		target, err := url.Parse(repo.Target)
+		if err != nil {
+			return c, fmt.Errorf("failed to parse target url %s: %s", repo.Target, err)
+		}
+		c.Repostitories[i].TargetURL = target
 	}
 
 	return c, nil
