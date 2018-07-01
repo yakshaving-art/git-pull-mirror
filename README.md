@@ -11,25 +11,29 @@ free, with a more responsive implementation.
 
 ## Usage
 
-`git-pull-mirror public-hostname`
+`git-pull-mirror`
 
 This will start the pull mirror webhooks server in the port 9092. It will
 load the default configuration file `mirrors.yml` and then will register
-itself to GitHub using the public-hostname such that webhooks will be
-directed to `https://public-hostname/hooks/:owner/:name`
+itself to GitHub using the $CALLBACK_URL such that webhooks will be
+directed to it.
 
 ## Environment variables
 
-- **SSH_KEY** is the private ssh key used to talk to the remotes. It needs to
-    be explicitly set, there will be no assumptions made around which ssh key to
-    use.
+- **CALLBACK_URL** callback url to report to github for webhooks, must
+    include schema and domain.
 - **GITHUB_USER** github username, used to configure the webhooks through the
     API.
 - **GITHUB_TOKEN** github token, used as the password to configure the
     webhooks through the API
+- **SSH_KEY** is the private ssh key used to talk to the remotes. It needs to
+    be explicitly set, there will be no assumptions made around which ssh key to
+    use.
 
 ## Options
 
+- -callback.url string
+    callback url to report to github for webhooks, must include schema and domain (default loaded from env CALLBACK_URL)
 - -config.file string
     configuration file (default "mirrors.yml")
 - -debug
@@ -38,6 +42,12 @@ directed to `https://public-hostname/hooks/:owner/:name`
     execute configuration loading then exit. Don't actually do anything
 - -git.timeout.seconds int
     git operations timeout in seconds, defaults to 60 (default 60)
+- -github.token string
+    github token, used as the password to configure the webhooks through the API (default loaded from env GITHUB_TOKEN)
+- -github.url string
+    api url to register webhooks (default "https://api.github.com/hub")
+- -github.user string
+    github username, used to configure the webhooks through the API (default loaded from env GITHUB_USER)
 - -listen.address string
     address in which to listen for webhooks (default "localhost:9092")
 - -repositories.path string
