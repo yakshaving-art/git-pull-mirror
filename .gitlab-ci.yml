@@ -17,7 +17,6 @@ build:
 
 test:
   stage: test
-  coverage: '/^coverage:\s+(\d+.\d+)%\s+of statements$/'
+  coverage: '/^total:\s+\(statements\)\s+(\d+.\d+)%$/'
   script:
-    - go test -v -cover ./...
-
+    - go test -v -coverprofile=coverage.out $(go list ./... | grep -v '/vendor/') && go tool cover -func=coverage.out
