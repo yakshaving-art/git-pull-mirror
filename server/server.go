@@ -180,7 +180,7 @@ func (ws *WebHooksServer) Run(address string) {
 				metrics.HooksFailedTotal.WithLabelValues(repo.target.ToPath()).Inc()
 				return
 			}
-			metrics.GitLatencySecondsTotal.WithLabelValues("push", repo.origin.ToPath()).Observe(((time.Now().Sub(startPush)).Seconds()))
+			metrics.GitLatencySecondsTotal.WithLabelValues("push", repo.target.ToPath()).Observe(((time.Now().Sub(startPush)).Seconds()))
 			metrics.HooksUpdatedTotal.WithLabelValues(repo.target.ToPath()).Inc()
 
 			logrus.Debugf("updated repository %s in %s", repo.origin, repo.target)
