@@ -2,13 +2,15 @@ package main
 
 import (
 	"flag"
-	"github.com/sirupsen/logrus"
-	"gitlab.com/yakshaving.art/git-pull-mirror/config"
-	"gitlab.com/yakshaving.art/git-pull-mirror/github"
-	"gitlab.com/yakshaving.art/git-pull-mirror/server"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/sirupsen/logrus"
+	"gitlab.com/yakshaving.art/git-pull-mirror/config"
+	"gitlab.com/yakshaving.art/git-pull-mirror/github"
+	_ "gitlab.com/yakshaving.art/git-pull-mirror/metrics"
+	"gitlab.com/yakshaving.art/git-pull-mirror/server"
 )
 
 var (
