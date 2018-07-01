@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	// "io/ioutil"
 	"net/http"
 	"net/url"
 	"sync"
@@ -79,7 +80,7 @@ func (ws *WebHooksServer) Configure(c config.Config) error {
 				return
 			}
 
-			repositories[r.OriginURL.ToPath()] = repo
+			repositories[r.OriginURL.ToKey()] = repo
 		}(r)
 	}
 	wg.Wait()
@@ -119,17 +120,29 @@ func (ws *WebHooksServer) Run(address string) {
 		ws.wg.Add(1)
 		defer ws.wg.Done()
 
+		if r.Method != "POST" {
+			http.Error(w, fmt.Sprintf("only POST is allowed"), http.StatusBadRequest)
+			return
+		}
+
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, fmt.Sprintf("bad request: %s", err), http.StatusBadRequest)
 			return
 		}
 
-		logrus.Infof("URI: %s", r.RequestURI)
-		logrus.Infof("Form: %#v", r.Form)
+		// logrus.Debugf("form: %#v", r.Form)
+
+		// defer r.Body.Close()
+		// body, err := ioutil.ReadAll(r.Body)
+		// if err != nil {
+		// 	http.Error(w, fmt.Sprintf("can't read body: %s", err), http.StatusBadRequest)
+		// 	return
+		// }
+		// logrus.Debugf("body: %#v", string(body))
 
 		payload := r.FormValue("payload")
 		if payload == "" {
-			http.Error(w, "bad request", http.StatusBadRequest)
+			http.Error(w, "no payload in the form", http.StatusBadRequest)
 			return
 		}
 
@@ -142,7 +155,16 @@ func (ws *WebHooksServer) Run(address string) {
 		ws.lock.Lock()
 		defer ws.lock.Unlock()
 
+		repo, ok := ws.repositories[hookPayload.Repository.FullName]
+		if !ok {
+			http.Error(w, fmt.Sprintf("unknown repo %s", hookPayload.Repository.FullName), http.StatusNotFound)
+			return
+		}
+
+		ws.wg.Add(1)
 		go func(repo Repository) {
+			defer ws.wg.Done()
+
 			if err := repo.Fetch(); err != nil {
 				logrus.Errorf("failed to fetch repo %s: %s", repo.origin, err)
 				return
@@ -150,7 +172,7 @@ func (ws *WebHooksServer) Run(address string) {
 			if err := repo.Push(); err != nil {
 				logrus.Errorf("failed to push repo %s to %s: %s", repo.origin, repo.target, err)
 			}
-		}(ws.repositories[hookPayload.Repository.FullName])
+		}(repo)
 
 		w.WriteHeader(http.StatusAccepted)
 	})
