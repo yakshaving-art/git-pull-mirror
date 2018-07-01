@@ -2,7 +2,6 @@ package url
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
 	"path"
 	"regexp"
@@ -33,7 +32,12 @@ type GitURL struct {
 }
 
 func (g GitURL) String() string {
-	return fmt.Sprintf("%s/%s/%s", g.Domain, g.Owner, g.Name)
+	return g.ToPath()
+}
+
+// ToKey returns the key that identifies the repo in the service: owner/name
+func (g GitURL) ToKey() string {
+	return path.Join(g.Owner, g.Name)
 }
 
 // Parse gets a url string and returns a URL object, or an error

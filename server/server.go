@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	// "io/ioutil"
 	"net/http"
 	"net/url"
 	"sync"
@@ -13,10 +14,12 @@ import (
 
 // WebHooksServer is the server that will listen for webhooks calls and handle them
 type WebHooksServer struct {
-	wg *sync.WaitGroup
+	wg   *sync.WaitGroup
+	lock *sync.Mutex
 
 	opts         WebHooksServerOptions
-	repositories config.Config
+	config       config.Config
+	repositories map[string]Repository
 	running      bool
 	callbackPath string
 }
@@ -33,6 +36,7 @@ type WebHooksServerOptions struct {
 func New(opts WebHooksServerOptions) *WebHooksServer {
 	return &WebHooksServer{
 		wg:   &sync.WaitGroup{},
+		lock: &sync.Mutex{},
 		opts: opts,
 	}
 }
@@ -47,11 +51,11 @@ func (ws *WebHooksServer) Configure(c config.Config) error {
 	if err != nil {
 		return fmt.Errorf("could not parse callback url %s: %s", ws.opts.GitHubClientOpts.CallbackURL, err)
 	}
-	ws.callbackPath = callback.Path
 
 	g := newGitClient(ws.opts)
 	gh := github.New(ws.opts.GitHubClientOpts)
 
+	repositories := make(map[string]Repository, len(c.Repostitories))
 	errors := make(chan error, len(c.Repostitories))
 
 	wg := &sync.WaitGroup{}
@@ -75,6 +79,8 @@ func (ws *WebHooksServer) Configure(c config.Config) error {
 				errors <- fmt.Errorf("failed to register webhooks for %s: %s", r.OriginURL, err)
 				return
 			}
+
+			repositories[r.OriginURL.ToKey()] = repo
 		}(r)
 	}
 	wg.Wait()
@@ -91,7 +97,13 @@ func (ws *WebHooksServer) Configure(c config.Config) error {
 		return fmt.Errorf("failed to load configuration")
 	}
 
-	ws.repositories = c
+	ws.lock.Lock()
+	defer ws.lock.Unlock()
+
+	ws.callbackPath = callback.Path
+	ws.config = c
+	ws.repositories = repositories
+
 	logrus.Infof("configuration loaded successfully")
 	return nil
 }
@@ -108,12 +120,61 @@ func (ws *WebHooksServer) Run(address string) {
 		ws.wg.Add(1)
 		defer ws.wg.Done()
 
-		r.ParseForm()
+		if r.Method != "POST" {
+			http.Error(w, fmt.Sprintf("only POST is allowed"), http.StatusBadRequest)
+			return
+		}
 
-		logrus.Infof("URI: %s", r.RequestURI)
-		logrus.Infof("Form: %#v", r.Form)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, fmt.Sprintf("bad request: %s", err), http.StatusBadRequest)
+			return
+		}
 
-		w.WriteHeader(http.StatusOK)
+		// logrus.Debugf("form: %#v", r.Form)
+
+		// defer r.Body.Close()
+		// body, err := ioutil.ReadAll(r.Body)
+		// if err != nil {
+		// 	http.Error(w, fmt.Sprintf("can't read body: %s", err), http.StatusBadRequest)
+		// 	return
+		// }
+		// logrus.Debugf("body: %#v", string(body))
+
+		payload := r.FormValue("payload")
+		if payload == "" {
+			http.Error(w, "no payload in the form", http.StatusBadRequest)
+			return
+		}
+
+		hookPayload, err := github.ParseHookPayload(payload)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("bad request: %s", err), http.StatusBadRequest)
+			return
+		}
+
+		ws.lock.Lock()
+		defer ws.lock.Unlock()
+
+		repo, ok := ws.repositories[hookPayload.Repository.FullName]
+		if !ok {
+			http.Error(w, fmt.Sprintf("unknown repo %s", hookPayload.Repository.FullName), http.StatusNotFound)
+			return
+		}
+
+		ws.wg.Add(1)
+		go func(repo Repository) {
+			defer ws.wg.Done()
+
+			if err := repo.Fetch(); err != nil {
+				logrus.Errorf("failed to fetch repo %s: %s", repo.origin, err)
+				return
+			}
+			if err := repo.Push(); err != nil {
+				logrus.Errorf("failed to push repo %s to %s: %s", repo.origin, repo.target, err)
+			}
+		}(repo)
+
+		w.WriteHeader(http.StatusAccepted)
 	})
 
 	logrus.Infof("starting listener on %s", address)

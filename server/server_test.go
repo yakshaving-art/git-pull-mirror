@@ -11,7 +11,7 @@ func TestBuildingAServerAndConfigureWithEmptyConfigWorks(t *testing.T) {
 		GitTimeoutSeconds: 60,
 		RepositoriesPath:  "/tmp",
 		GitHubClientOpts: github.ClientOpts{
-			CallbackURL: "http://example.com/",
+			CallbackURL: "https://example.com/",
 			Token:       "xxx",
 			User:        "user",
 		},
