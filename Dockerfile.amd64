@@ -1,0 +1,9 @@
+FROM alpine:3.7
+
+EXPOSE 9092/tcp
+ 
+RUN apk --no-cache add ca-certificates
+
+COPY git-pull-mirror /
+ 
+ENTRYPOINT [ "/git-pull-mirror" ]
