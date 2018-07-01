@@ -1,4 +1,4 @@
-package server
+package github
 
 import (
 	"encoding/json"
@@ -16,7 +16,8 @@ type HookPayload struct {
 	} `json:"hook"`
 }
 
-func parsePayload(payload string) (HookPayload, error) {
+// ParseHookPayload parses a payload string and returns the payload as a struct
+func ParseHookPayload(payload string) (HookPayload, error) {
 	var hookPayload HookPayload
 	if err := json.Unmarshal([]byte(payload), &hookPayload); err != nil {
 		return hookPayload, fmt.Errorf("could not parse hook payload: %s", err)

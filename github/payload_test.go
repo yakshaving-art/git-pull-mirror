@@ -1,4 +1,4 @@
-package server
+package github
 
 import (
 	"io/ioutil"
@@ -11,7 +11,7 @@ func TestParsingPayload(t *testing.T) {
 		t.Fatalf("Failed to read fixture file: %s", err)
 	}
 
-	hook, err := parsePayload(string(payload))
+	hook, err := ParseHookPayload(string(payload))
 	if err != nil {
 		t.Fatalf("Failed to parse payload: %s", err)
 	}
@@ -25,7 +25,7 @@ func TestParsingPayload(t *testing.T) {
 }
 
 func TestParsingInvalidPayloadFails(t *testing.T) {
-	_, err := parsePayload("...")
+	_, err := ParseHookPayload("invalid")
 	if err == nil {
 		t.Fatalf("Should have failed to parse payload")
 	}
