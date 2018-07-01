@@ -2,14 +2,15 @@ package server
 
 import (
 	"fmt"
-	// "io/ioutil"
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"gitlab.com/yakshaving.art/git-pull-mirror/config"
 	"gitlab.com/yakshaving.art/git-pull-mirror/github"
+	"gitlab.com/yakshaving.art/git-pull-mirror/metrics"
 )
 
 // WebHooksServer is the server that will listen for webhooks calls and handle them
@@ -104,6 +105,8 @@ func (ws *WebHooksServer) Configure(c config.Config) error {
 	ws.config = c
 	ws.repositories = repositories
 
+	metrics.LastSuccessfulConfigApply.Set(float64(time.Now().Unix()))
+
 	logrus.Infof("configuration loaded successfully")
 	return nil
 }
@@ -117,13 +120,15 @@ func (ws *WebHooksServer) Run(address string) {
 			return
 		}
 
-		ws.wg.Add(1)
-		defer ws.wg.Done()
-
 		if r.Method != "POST" {
 			http.Error(w, fmt.Sprintf("only POST is allowed"), http.StatusBadRequest)
 			return
 		}
+
+		metrics.HooksReceivedTotal.Inc()
+
+		ws.wg.Add(1)
+		defer ws.wg.Done()
 
 		if err := r.ParseForm(); err != nil {
 			logrus.Debugf("Failed to parse form on request %#v", r)
@@ -154,18 +159,30 @@ func (ws *WebHooksServer) Run(address string) {
 			return
 		}
 
+		metrics.HooksAcceptedTotal.WithLabelValues(hookPayload.Repository.FullName).Inc()
+
 		ws.wg.Add(1)
 		go func(repo Repository) {
 			defer ws.wg.Done()
 
+			startFetch := time.Now()
 			if err := repo.Fetch(); err != nil {
 				logrus.Errorf("failed to fetch repo %s: %s", repo.origin, err)
+				metrics.HooksFailedTotal.WithLabelValues(repo.origin.ToKey()).Inc()
 				return
 			}
+			metrics.GitLatencySecondsTotal.WithLabelValues("fetch", repo.origin.ToKey()).Observe(((time.Now().Sub(startFetch)).Seconds()))
+			metrics.HooksUpdatedTotal.WithLabelValues(repo.origin.ToKey()).Inc()
+
+			startPush := time.Now()
 			if err := repo.Push(); err != nil {
 				logrus.Errorf("failed to push repo %s to %s: %s", repo.origin, repo.target, err)
+				metrics.HooksFailedTotal.WithLabelValues(repo.target.ToKey()).Inc()
 				return
 			}
+			metrics.GitLatencySecondsTotal.WithLabelValues("push", repo.origin.ToKey()).Observe(((time.Now().Sub(startPush)).Seconds()))
+			metrics.HooksUpdatedTotal.WithLabelValues(repo.target.ToKey()).Inc()
+
 			logrus.Debugf("updated repository %s in %s", repo.origin, repo.target)
 		}(repo)
 
