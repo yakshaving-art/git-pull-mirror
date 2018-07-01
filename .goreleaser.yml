@@ -1,4 +1,9 @@
-project_name: gitlab-pull-mirror
+project_name: git-pull-mirror
+release:
+  github:
+    owner: yakshaving-art
+    name: git-pull-mirror
+  name_template: '{{ .Tag }}'
 builds:
 - goos:
   - linux
@@ -9,3 +14,45 @@ builds:
     - arm64
   goarm:
     - "6"
+  main: .
+  binary: git-pull-mirror
+snapshot:
+  name_template: SNAPSHOT-{{ .Commit }}
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
+dist: dist
+changelog:
+  filters:
+    exclude:
+      - typo
+      - Fix
+      - Merge
+      - WIP
+archive:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+  format: tar.gz
+  files:
+  - license*
+  - LICENSE*
+  - readme*
+  - README*
+  - changelog*
+  - CHANGELOG*
+dockers:
+- image: yakshaving/git-pull-mirror
+  goos: linux
+  goarch: amd64
+  goarm: ''
+  binary: git-pull-mirror
+  dockerfile: Dockerfile.amd64
+- image: yakshaving/git-pull-mirror-armv6
+  goos: linux
+  goarch: arm
+  goarm: '6'
+  binary: git-pull-mirror
+  dockerfile: Dockerfile.armv6
+- image: yakshaving/git-pull-mirror-arm64
+  goos: linux
+  goarch: arm64
+  binary: git-pull-mirror
+  dockerfile: Dockerfile.arm64
