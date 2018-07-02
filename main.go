@@ -120,7 +120,7 @@ func checkArgs() {
 		logrus.Fatalf("Invalid callback URL '%s': %s", *callbackURL, err)
 	} else {
 		if strings.TrimSpace(u.Scheme) == "" || strings.TrimSpace(u.Path) == "" || strings.TrimSpace(u.Host) == "" {
-			logrus.Fatalf("Invalid callback URL '%s'", *callbackURL)
+			logrus.Fatalf("Invalid callback URL '%s', it should include a path", *callbackURL)
 		}
 	}
 	if len(strings.TrimSpace(*githubUser)) == 0 {
