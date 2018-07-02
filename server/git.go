@@ -19,6 +19,12 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 )
 
+// Remotes names
+const (
+	OriginRemote = "origin"
+	TargetRemote = "target"
+)
+
 // Repository is a git repo that enables to pull and push. Having an instance of this object means that we have a valid repo
 type Repository struct {
 	repo   *git.Repository
@@ -27,11 +33,30 @@ type Repository struct {
 	client gitClient
 }
 
-// Remotes names
-const (
-	OriginRemote = "origin"
-	TargetRemote = "target"
-)
+func (r Repository) updateRemotes() error {
+	remote, _ := r.repo.Remote(OriginRemote)
+	if remote.Config().URLs[0] != r.origin.URI {
+		r.repo.DeleteRemote(OriginRemote)
+		if _, err := r.repo.CreateRemote(&config.RemoteConfig{
+			Name: OriginRemote,
+			URLs: []string{r.origin.URI},
+		}); err != nil {
+			return fmt.Errorf("could not update origin remote: %s", err)
+		}
+	}
+
+	remote, _ = r.repo.Remote(TargetRemote)
+	if remote.Config().URLs[0] != r.target.URI {
+		r.repo.DeleteRemote(TargetRemote)
+		if _, err := r.repo.CreateRemote(&config.RemoteConfig{
+			Name: TargetRemote,
+			URLs: []string{r.target.URI},
+		}); err != nil {
+			return fmt.Errorf("could not update target remote: %s", err)
+		}
+	}
+	return nil
+}
 
 func newGitClient(ops WebHooksServerOptions) gitClient {
 	return gitClient{ops: ops}
@@ -66,6 +91,8 @@ func (g gitClient) CloneOrOpen(origin url.GitURL, target url.GitURL) (Repository
 		origin: origin,
 		target: target,
 	}
+	repo.updateRemotes()
+
 	return repo, err
 }
 
