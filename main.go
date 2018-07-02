@@ -2,8 +2,10 @@ package main
 
 import (
 	"flag"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/sirupsen/logrus"
@@ -33,6 +35,8 @@ func main() {
 	})
 
 	flag.Parse()
+
+	checkArgs()
 
 	if *debug {
 		toggleDebugLogLevel()
@@ -101,5 +105,43 @@ func toggleDebugLogLevel() {
 		logrus.SetLevel(logrus.DebugLevel)
 	default:
 		logrus.SetLevel(logrus.InfoLevel)
+	}
+}
+
+// checkArgs ensures that all the arguments make some sense before trying to do anything at all.
+func checkArgs() {
+	if strings.TrimSpace(*configFile) == "" {
+		logrus.Fatalf("Config file is mandatory, please set it through the -config.file argument")
+	}
+	if strings.TrimSpace(*callbackURL) == "" {
+		logrus.Fatalf("Callback URL is mandatory, please set it through the environment CALLBACK_URL variable or with -callback.url")
+	}
+	if u, err := url.ParseRequestURI(*callbackURL); err != nil {
+		logrus.Fatalf("Invalid callback URL '%s': %s", *callbackURL, err)
+	} else {
+		if strings.TrimSpace(u.Scheme) == "" || strings.TrimSpace(u.Path) == "" || strings.TrimSpace(u.Host) == "" {
+			logrus.Fatalf("Invalid callback URL '%s'", *callbackURL)
+		}
+	}
+	if len(strings.TrimSpace(*githubUser)) == 0 {
+		logrus.Fatalf("GitHub user is mandatory, please set it through the environment GITHUB_USER variable or with -github.user")
+	}
+	if len(strings.TrimSpace(*githubToken)) == 0 {
+		logrus.Fatalf("GitToken user is mandatory, please set it through the environment GITHUB_TOKEN variable or with -github.token")
+	}
+	if _, err := url.Parse(*githubURL); err != nil {
+		logrus.Fatalf("Invalid github URL '%s': %s", *githubURL, err)
+	}
+
+	if _, err := os.Stat(*repoPath); err != nil {
+		logrus.Fatalf("Repositories path is not accessible: %s", err)
+	}
+	if strings.TrimSpace(*sshkey) != "" {
+		if _, err := os.Stat(*sshkey); err != nil {
+			logrus.Fatalf("SSH Key %s is not accessible", err)
+		}
+	}
+	if *timeoutSeconds <= 0 {
+		logrus.Fatalf("Invalid timeout seconds %d, it should be 1 or higher", *timeoutSeconds)
 	}
 }
