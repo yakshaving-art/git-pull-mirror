@@ -49,7 +49,7 @@ directed to it.
 - -github.user string
     github username, used to configure the webhooks through the API (default loaded from env GITHUB_USER)
 - -listen.address string
-    address in which to listen for webhooks (default "localhost:9092")
+    address in which to listen for webhooks (default ":9092")
 - -repositories.path string
     local path in which to store cloned repositories (default ".")
 - -sshkey string
