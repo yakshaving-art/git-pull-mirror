@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	address        = flag.String("listen.address", "localhost:9092", "address in which to listen for webhooks")
+	address        = flag.String("listen.address", ":9092", "address in which to listen for webhooks")
 	configFile     = flag.String("config.file", "mirrors.yml", "configuration file")
 	callbackURL    = flag.String("callback.url", os.Getenv("CALLBACK_URL"), "callback url to report to github for webhooks, must include schema and domain")
 	debug          = flag.Bool("debug", false, "enable debugging log level")
