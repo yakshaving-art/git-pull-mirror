@@ -44,6 +44,7 @@ func (c Client) RegisterWebhook(uri giturl.GitURL) error {
 	if err != nil {
 		return fmt.Errorf("could not create request for webhook: %s", err)
 	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.SetBasicAuth(c.opts.User, c.opts.Token)
 
 	resp, err := http.DefaultClient.Do(req)
