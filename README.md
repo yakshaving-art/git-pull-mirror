@@ -32,27 +32,27 @@ directed to it.
 
 ## Options
 
-- -callback.url string
+- **-callback.url** *string*
     callback url to report to github for webhooks, must include schema and domain (default loaded from env CALLBACK_URL)
-- -config.file string
+- **-config.file** *string*
     configuration file (default "mirrors.yml")
-- -debug
+- **-debug**
     enable debugging log level
-- -dryrun
+- **-dryrun**
     execute configuration loading then exit. Don't actually do anything
-- -git.timeout.seconds int
+- **-git.timeout.seconds** *int*
     git operations timeout in seconds, defaults to 60 (default 60)
-- -github.token string
+- **-github.token** *string*
     github token, used as the password to configure the webhooks through the API (default loaded from env GITHUB_TOKEN)
-- -github.url string
+- **-github.url** *string*
     api url to register webhooks (default "https://api.github.com/hub")
-- -github.user string
+- **-github.user** *string*
     github username, used to configure the webhooks through the API (default loaded from env GITHUB_USER)
-- -listen.address string
+- **-listen.address** *string*
     address in which to listen for webhooks (default ":9092")
-- -repositories.path string
+- **-repositories.path** *string*
     local path in which to store cloned repositories (default ".")
-- -sshkey string
+- **-sshkey** *string*
     ssh key to use to identify to remotes
 
 ## Signals
