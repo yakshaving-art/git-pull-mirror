@@ -27,10 +27,11 @@ type WebHooksServer struct {
 
 // WebHooksServerOptions holds server configuration options
 type WebHooksServerOptions struct {
-	GitTimeoutSeconds int
-	RepositoriesPath  string
-	SSHPrivateKey     string
-	GitHubClientOpts  github.ClientOpts
+	GitTimeoutSeconds        int
+	RepositoriesPath         string
+	SSHPrivateKey            string
+	SkipWebhooksRegistration bool
+	GitHubClientOpts         github.ClientOpts
 }
 
 // New returns a new unconfigured webhooks server
@@ -56,11 +57,11 @@ func (ws *WebHooksServer) Configure(c config.Config) error {
 	g := newGitClient(ws.opts)
 	gh := github.New(ws.opts.GitHubClientOpts)
 
-	repositories := make(map[string]Repository, len(c.Repostitories))
-	errors := make(chan error, len(c.Repostitories))
+	repositories := make(map[string]Repository, len(c.Repositories))
+	errors := make(chan error, len(c.Repositories))
 
 	wg := &sync.WaitGroup{}
-	for _, r := range c.Repostitories {
+	for _, r := range c.Repositories {
 		wg.Add(1)
 		go func(r config.RepositoryConfig) {
 			defer wg.Done()
@@ -76,9 +77,11 @@ func (ws *WebHooksServer) Configure(c config.Config) error {
 				return
 			}
 
-			if err = gh.RegisterWebhook(r.OriginURL); err != nil {
-				errors <- fmt.Errorf("failed to register webhooks for %s: %s", r.OriginURL, err)
-				return
+			if !ws.opts.SkipWebhooksRegistration {
+				if err = gh.RegisterWebhook(r.OriginURL); err != nil {
+					errors <- fmt.Errorf("failed to register webhooks for %s: %s", r.OriginURL, err)
+					return
+				}
 			}
 
 			repositories[r.OriginURL.ToKey()] = repo

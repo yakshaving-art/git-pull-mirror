@@ -10,13 +10,13 @@ func TestLoadingValidConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to load valid configuration: %s", err)
 	}
-	if len(c.Repostitories) != 2 {
-		t.Fatalf("Invalid configuration repositories length: expected 2, got %d", len(c.Repostitories))
+	if len(c.Repositories) != 2 {
+		t.Fatalf("Invalid configuration repositories length: expected 2, got %d", len(c.Repositories))
 	}
-	assertEquals(t, "https://github.com/yakshaving-art/git-pull-mirror.git", c.Repostitories[0].Origin)
-	assertEquals(t, "git@gitlab.com:yakshaving.art/git-pull-mirror.git", c.Repostitories[0].Target)
-	assertEquals(t, "https://user:password@github.com/group/user", c.Repostitories[1].Origin)
-	assertEquals(t, "git@gitlab.com:other-group/other-user", c.Repostitories[1].Target)
+	assertEquals(t, "https://github.com/yakshaving-art/git-pull-mirror.git", c.Repositories[0].Origin)
+	assertEquals(t, "git@gitlab.com:yakshaving.art/git-pull-mirror.git", c.Repositories[0].Target)
+	assertEquals(t, "https://user:password@github.com/group/user", c.Repositories[1].Origin)
+	assertEquals(t, "git@gitlab.com:other-group/other-user", c.Repositories[1].Target)
 }
 
 func TestLoadingEmptyConfiguration(t *testing.T) {
@@ -24,8 +24,8 @@ func TestLoadingEmptyConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to load valid configuration: %s", err)
 	}
-	if len(c.Repostitories) != 0 {
-		t.Fatalf("Invalid configuration repositories length: expected 0, got %d", len(c.Repostitories))
+	if len(c.Repositories) != 0 {
+		t.Fatalf("Invalid configuration repositories length: expected 0, got %d", len(c.Repositories))
 	}
 }
 
