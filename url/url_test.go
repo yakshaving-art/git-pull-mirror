@@ -48,6 +48,16 @@ func Test_ParseGitHubURL(t *testing.T) {
 			nil,
 		},
 		{
+			"Invalid GitHub Git URL",
+			"git@github.com:.git",
+			"",
+			"",
+			"",
+			"",
+			"",
+			url.ErrInvalidURL,
+		},
+		{
 			"GitHub HTTP URL",
 			"https://github.com/gomeeseeks/meeseeks-box.git",
 			"github.com/gomeeseeks/meeseeks-box",
@@ -107,6 +117,16 @@ func Test_ParseGitHubURL(t *testing.T) {
 			"password",
 			nil,
 		},
+		{
+			"Invalid Git HTTP URL",
+			"http://gitlab.com",
+			"",
+			"",
+			"",
+			"",
+			"",
+			url.ErrInvalidURL,
+		},
 	}
 
 	for _, tc := range tt {
@@ -121,6 +141,22 @@ func Test_ParseGitHubURL(t *testing.T) {
 				assertEquals(t, tc.expectedPassword, url.Password)
 			}
 		})
+	}
+}
+
+func TestAuxiliarMehods(t *testing.T) {
+	url, err := url.Parse("git@github.com:gomeeseeks/meeseeks-box.git")
+	must(t, err)
+
+	assertEquals(t, "github.com/gomeeseeks/meeseeks-box", url.ToPath())
+	assertEquals(t, "gomeeseeks/meeseeks-box", url.ToKey())
+	assertEquals(t, "github.com/gomeeseeks/meeseeks-box", url.String())
+
+}
+
+func must(t *testing.T, err error) {
+	if err != nil {
+		t.Fatalf("Got error: %s", err)
 	}
 }
 
