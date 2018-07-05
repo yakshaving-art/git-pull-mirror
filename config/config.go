@@ -11,7 +11,7 @@ import (
 
 // Config holds the configuration of the application
 type Config struct {
-	Repostitories []RepositoryConfig `yaml:"repositories"`
+	Repositories []RepositoryConfig `yaml:"repositories"`
 }
 
 // RepositoryConfig holds the repository origin url, git origin parsing and
@@ -38,18 +38,18 @@ func LoadConfiguration(filename string) (Config, error) {
 		return c, fmt.Errorf("failed to parse configuration file %s: %s", filename, err)
 	}
 
-	for i, repo := range c.Repostitories {
+	for i, repo := range c.Repositories {
 		origin, err := url.Parse(repo.Origin)
 		if err != nil {
 			return c, fmt.Errorf("failed to parse origin url %s: %s", repo.Origin, err)
 		}
-		c.Repostitories[i].OriginURL = origin
+		c.Repositories[i].OriginURL = origin
 
 		target, err := url.Parse(repo.Target)
 		if err != nil {
 			return c, fmt.Errorf("failed to parse target url %s: %s", repo.Target, err)
 		}
-		c.Repostitories[i].TargetURL = target
+		c.Repositories[i].TargetURL = target
 	}
 
 	return c, nil

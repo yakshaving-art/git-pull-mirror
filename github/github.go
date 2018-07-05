@@ -32,7 +32,6 @@ func New(opts ClientOpts) Client {
 
 // RegisterWebhook registers a new webhook
 func (c Client) RegisterWebhook(uri giturl.GitURL) error {
-
 	logrus.Debugf("registering webhook for %s", uri)
 
 	form := url.Values{}
