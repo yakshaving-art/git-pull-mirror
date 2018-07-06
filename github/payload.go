@@ -5,15 +5,21 @@ import (
 	"fmt"
 )
 
+// Repository holds the repository information
+type Repository struct {
+	URL      string `json:"url"`
+	FullName string `json:"full_name"`
+}
+
+// Hook holds the hook events
+type Hook struct {
+	Events []string `json:"events"`
+}
+
 // HookPayload hold the GitHub
 type HookPayload struct {
-	Repository struct {
-		URL      string `json:"url"`
-		FullName string `json:"full_name"`
-	} `json:"repository"`
-	Hook struct {
-		Events []string `json:"events"`
-	} `json:"hook"`
+	Repository Repository `json:"repository"`
+	Hook       Hook       `json:"hook"`
 }
 
 // ParseHookPayload parses a payload string and returns the payload as a struct
