@@ -44,7 +44,6 @@ func TestBuildingAServerAndConfigureWithEmptyConfigWorks(t *testing.T) {
 
 	_, err = git.PlainInit(tmpDir+"/gitlab.com/yakshaving.art/git-pull-mirror", true)
 	must(t, "failed to plain init target repo", err)
-	// defer os.RemoveAll(tmpDir)
 
 	if err := s.Configure(config.Config{
 		Repositories: []config.RepositoryConfig{
@@ -89,6 +88,32 @@ func TestBuildingAServerAndConfigureWithEmptyConfigWorks(t *testing.T) {
 				if res.Status != "404 Not Found" {
 					t.Fatalf("Unexpected status code %s", res.Status)
 				}
+			},
+		},
+		{
+			"",
+			func(t *testing.T) {
+
+				_, err = git.PlainInit(tmpDir+"/gitlab.com/yakshaving.art/git-pull-mirror-2", true)
+				must(t, "failed to plain init target repo 2", err)
+
+				targetURL2 := url.GitURL{
+					Domain:    "gitlab.com",
+					Name:      "git-pull-mirror-2",
+					Owner:     "yakshaving.art",
+					URI:       "file://" + tmpDir + "/target/gitlab.com/yakshaving.art/git-pull-mirror-2",
+					Transport: "file",
+				}
+				err := s.Configure(config.Config{
+					Repositories: []config.RepositoryConfig{
+						{
+							Origin: originURL.URI, OriginURL: originURL,
+							Target: targetURL2.URI, TargetURL: targetURL2,
+						},
+					},
+				})
+
+				must(t, "failed to configure server", err)
 			},
 		},
 	}
