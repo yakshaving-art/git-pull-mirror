@@ -205,7 +205,7 @@ func (r Repository) Push() error {
 		Auth:       auth,
 		RemoteName: TargetRemote,
 		RefSpecs: []config.RefSpec{
-			"+refs/heads/*:refs/heads/*",
+			"+refs/remotes/origin/*:refs/heads/*",
 			"+refs/tags/*:refs/tags/*",
 		},
 	})
