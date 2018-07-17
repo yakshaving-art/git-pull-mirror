@@ -38,8 +38,9 @@ func (r Repository) updateRemotes() error {
 	if remote.Config().URLs[0] != r.origin.URI {
 		r.repo.DeleteRemote(OriginRemote)
 		if _, err := r.repo.CreateRemote(&config.RemoteConfig{
-			Name: OriginRemote,
-			URLs: []string{r.origin.URI},
+			Name:  OriginRemote,
+			URLs:  []string{r.origin.URI},
+			Fetch: []config.RefSpec{"+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"},
 		}); err != nil {
 			return fmt.Errorf("could not update origin remote: %s", err)
 		}
@@ -108,9 +109,8 @@ func (g gitClient) clone(origin url.GitURL, target url.GitURL) (Repository, erro
 	defer cancel()
 
 	r, err := git.PlainCloneContext(ctx, g.pathFor(origin), true, &git.CloneOptions{
-		URL:          origin.URI,
-		Auth:         auth,
-		SingleBranch: false,
+		URL:  origin.URI,
+		Auth: auth,
 	})
 	if err != nil {
 		return Repository{}, fmt.Errorf("failed to execute clone of origin %s: %s", origin, err)
@@ -204,6 +204,10 @@ func (r Repository) Push() error {
 	err = r.repo.PushContext(ctx, &git.PushOptions{
 		Auth:       auth,
 		RemoteName: TargetRemote,
+		RefSpecs: []config.RefSpec{
+			"+refs/heads/*:refs/heads/*",
+			"+refs/tags/*:refs/tags/*",
+		},
 	})
 	if err == git.NoErrAlreadyUpToDate {
 		logrus.Debugf("%s is already up to date", r.target)
