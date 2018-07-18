@@ -183,6 +183,7 @@ func (ws *WebHooksServer) WebHookHandler(w http.ResponseWriter, r *http.Request)
 
 	metrics.HooksAcceptedTotal.WithLabelValues(hookPayload.Repository.FullName).Inc()
 
+	ws.wg.Add(1)
 	go ws.updateRepository(repo)
 
 	w.WriteHeader(http.StatusAccepted)
@@ -191,12 +192,12 @@ func (ws *WebHooksServer) WebHookHandler(w http.ResponseWriter, r *http.Request)
 // UpdateAll triggers an update for all the repositories
 func (ws *WebHooksServer) UpdateAll() {
 	for _, repo := range ws.repositories {
-		ws.updateRepository(repo)
+		ws.wg.Add(1)
+		go ws.updateRepository(repo)
 	}
 }
 
 func (ws *WebHooksServer) updateRepository(repo Repository) {
-	ws.wg.Add(1)
 	defer ws.wg.Done()
 
 	startFetch := time.Now()
