@@ -183,30 +183,39 @@ func (ws *WebHooksServer) WebHookHandler(w http.ResponseWriter, r *http.Request)
 
 	metrics.HooksAcceptedTotal.WithLabelValues(hookPayload.Repository.FullName).Inc()
 
-	ws.wg.Add(1)
-	go func(repo Repository) {
-		defer ws.wg.Done()
-
-		startFetch := time.Now()
-		if err := repo.Fetch(); err != nil {
-			logrus.Errorf("failed to fetch repo %s: %s", repo.origin, err)
-			metrics.HooksFailedTotal.WithLabelValues(repo.origin.ToPath()).Inc()
-			return
-		}
-		metrics.GitLatencySecondsTotal.WithLabelValues("fetch", repo.origin.ToPath()).Observe(((time.Now().Sub(startFetch)).Seconds()))
-		metrics.HooksUpdatedTotal.WithLabelValues(repo.origin.ToPath()).Inc()
-
-		startPush := time.Now()
-		if err := repo.Push(); err != nil {
-			logrus.Errorf("failed to push repo %s to %s: %s", repo.origin, repo.target, err)
-			metrics.HooksFailedTotal.WithLabelValues(repo.target.ToPath()).Inc()
-			return
-		}
-		metrics.GitLatencySecondsTotal.WithLabelValues("push", repo.target.ToPath()).Observe(((time.Now().Sub(startPush)).Seconds()))
-		metrics.HooksUpdatedTotal.WithLabelValues(repo.target.ToPath()).Inc()
-
-		logrus.Debugf("updated repository %s in %s", repo.origin, repo.target)
-	}(repo)
+	go ws.updateRepository(repo)
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+// UpdateAll triggers an update for all the repositories
+func (ws *WebHooksServer) UpdateAll() {
+	for _, repo := range ws.repositories {
+		ws.updateRepository(repo)
+	}
+}
+
+func (ws *WebHooksServer) updateRepository(repo Repository) {
+	ws.wg.Add(1)
+	defer ws.wg.Done()
+
+	startFetch := time.Now()
+	if err := repo.Fetch(); err != nil {
+		logrus.Errorf("failed to fetch repo %s: %s", repo.origin, err)
+		metrics.HooksFailedTotal.WithLabelValues(repo.origin.ToPath()).Inc()
+		return
+	}
+	metrics.GitLatencySecondsTotal.WithLabelValues("fetch", repo.origin.ToPath()).Observe(((time.Now().Sub(startFetch)).Seconds()))
+	metrics.HooksUpdatedTotal.WithLabelValues(repo.origin.ToPath()).Inc()
+
+	startPush := time.Now()
+	if err := repo.Push(); err != nil {
+		logrus.Errorf("failed to push repo %s to %s: %s", repo.origin, repo.target, err)
+		metrics.HooksFailedTotal.WithLabelValues(repo.target.ToPath()).Inc()
+		return
+	}
+	metrics.GitLatencySecondsTotal.WithLabelValues("push", repo.target.ToPath()).Observe(((time.Now().Sub(startPush)).Seconds()))
+	metrics.HooksUpdatedTotal.WithLabelValues(repo.target.ToPath()).Inc()
+
+	logrus.Debugf("updated repository %s in %s", repo.origin, repo.target)
 }

@@ -72,7 +72,7 @@ func main() {
 	}
 
 	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, syscall.SIGHUP, syscall.SIGINT, syscall.SIGUSR1)
+	signal.Notify(signalCh, syscall.SIGHUP, syscall.SIGINT, syscall.SIGUSR1, syscall.SIGUSR2)
 
 	go s.Run(*address)
 
@@ -90,6 +90,10 @@ func main() {
 		case syscall.SIGUSR1:
 			logrus.Info("toggling debug log level")
 			toggleDebugLogLevel()
+
+		case syscall.SIGUSR2:
+			logrus.Info("Received USR2, forcing an update in all the repositories")
+			s.UpdateAll()
 
 		case syscall.SIGINT:
 			logrus.Info("Shutting down gracefully")
