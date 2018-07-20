@@ -57,7 +57,7 @@ directed to it.
 
 ## Signals
 
-**git-pull-mirrors** supports at least 3 signals:
+**git-pull-mirrors** supports at least 4 signals:
 
 - **SIGINT** will perform a graceful shutdown in which it will stop accepting
     webhooks, then finish all the pending work to then exit.
