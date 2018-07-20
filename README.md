@@ -64,7 +64,7 @@ directed to it.
 - **SIGHUP** will reload the mirrors.yml configuration file and apply it
     without downtime. If configuration parsing fails, it will not be applied.
 - **SIGUSR1** will toggle log debugging on and off.
-- **SIGURR2** will trigger a full update process for all the registered mirrors
+- **SIGUSR2** will trigger a full update process for all the registered mirrors
 
 ## Metrics
 
