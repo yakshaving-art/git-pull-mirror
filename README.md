@@ -64,3 +64,17 @@ directed to it.
 - **SIGHUP** will reload the mirrors.yml configuration file and apply it
     without downtime. If configuration parsing fails, it will not be applied.
 - **SIGUSR1** will toggle log debugging on and off.
+- **SIGURR2** will trigger a full update process for all the registered mirrors
+
+## Metrics
+
+**git-pull-mirrors** offers prometheus metrics used to track the state of the service, these should be used to monitor that the service is operating correctly.
+
+| name | type | help  |
+|---|---|---|
+| github_webhooks_git_latency_seconds           | summary  | latency percentiles of git fetch and push operations |
+| github_webhooks_hooks_received_total          | counter  | total count of hooks received |
+| github_webhooks_hooks_updated_total           | counter  | total number of repos succefully updated  |
+| github_webhooks_hooks_failed_total            | counter  | total number of repos that failed to update for some reason  |
+| github_webhooks_boot_time_seconds             | gauge    | unix timestamp indicating when the process was started |
+| github_webhooks_last_successful_config_apply  | gauge    | unix timestamp indicating when the last configuration reload was successfully executed  |
