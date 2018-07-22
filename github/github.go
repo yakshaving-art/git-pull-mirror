@@ -2,6 +2,7 @@ package github
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -52,6 +53,16 @@ func (c Client) RegisterWebhook(uri giturl.GitURL) error {
 		logrus.Debugf("webhook for %s correctly registered", uri)
 		return nil
 	default:
-		return fmt.Errorf("webhook creation request failed with status %d: %s - %s", resp.StatusCode, resp.Status, err)
+		if err != nil {
+			return fmt.Errorf("webhook creation request failed with status %d: %s - %s", resp.StatusCode, resp.Status, err)
+		}
+
+		b, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("webhook creation request failed with status %d: %s - failed to read body: %s", resp.StatusCode, resp.Status, err)
+		}
+		defer resp.Body.Close()
+
+		return fmt.Errorf("webhook creation request failed with status %d: %s - %s", resp.StatusCode, resp.Status, string(b))
 	}
 }
