@@ -63,6 +63,10 @@ func main() {
 		},
 	})
 
+	if err := s.Validate(); err != nil {
+		logrus.Fatalf("Webhooks server failed to validate the configuration: %s", err)
+	}
+
 	if *dryrun {
 		os.Exit(0)
 	}

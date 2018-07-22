@@ -34,10 +34,13 @@ type Repository struct {
 }
 
 func (r Repository) updateRemotes() error {
-	remote, _ := r.repo.Remote(OriginRemote)
+	remote, err := r.repo.Remote(OriginRemote)
+	if err != nil {
+		return fmt.Errorf("Could not obtain %s remote from repo %s, consider wiping the local copy", OriginRemote, r.origin)
+	}
 	if remote.Config().URLs[0] != r.origin.URI {
 		r.repo.DeleteRemote(OriginRemote)
-		if _, err := r.repo.CreateRemote(&config.RemoteConfig{
+		if _, err = r.repo.CreateRemote(&config.RemoteConfig{
 			Name:  OriginRemote,
 			URLs:  []string{r.origin.URI},
 			Fetch: []config.RefSpec{"+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"},
@@ -46,7 +49,10 @@ func (r Repository) updateRemotes() error {
 		}
 	}
 
-	remote, _ = r.repo.Remote(TargetRemote)
+	remote, err = r.repo.Remote(TargetRemote)
+	if err != nil {
+		return fmt.Errorf("Could not obtain %s remote from repo %s, consider wiping the local copy", TargetRemote, r.target)
+	}
 	if remote.Config().URLs[0] != r.target.URI {
 		r.repo.DeleteRemote(TargetRemote)
 		if _, err := r.repo.CreateRemote(&config.RemoteConfig{

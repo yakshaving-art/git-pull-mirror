@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"sync"
 	"time"
 
@@ -42,6 +43,37 @@ func New(opts WebHooksServerOptions) *WebHooksServer {
 		lock: &sync.Mutex{},
 		opts: opts,
 	}
+}
+
+// Validate checks that the webhooks server is properly configured
+func (ws *WebHooksServer) Validate() error {
+	if !ws.opts.SkipWebhooksRegistration {
+		if ws.opts.GitHubClientOpts.User == "" {
+			return fmt.Errorf("GitHub username is necessary for registering webhooks")
+		}
+		if ws.opts.GitHubClientOpts.Token == "" {
+			return fmt.Errorf("GitHub token is necessary for registering webhooks")
+		}
+		if ws.opts.GitHubClientOpts.GitHubURL == "" {
+			return fmt.Errorf("GitHub url is necessary for registering webhooks")
+		}
+		if ws.opts.GitHubClientOpts.CallbackURL == "" {
+			return fmt.Errorf("Callback url is necessary for registering webhooks")
+		}
+	}
+	if ws.opts.GitTimeoutSeconds == 0 {
+		return fmt.Errorf("git timeout cannot be 0")
+	}
+
+	f, err := os.Stat(ws.opts.RepositoriesPath)
+	if err != nil {
+		return fmt.Errorf("can't stat repositories path folder %s", ws.opts.RepositoriesPath)
+	}
+	if !f.IsDir() {
+		return fmt.Errorf("repositories path folder %s it not a folder", ws.opts.RepositoriesPath)
+	}
+
+	return nil
 }
 
 // Configure loads the configuration on the server and sets it. Can fail if any
