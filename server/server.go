@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/yakshaving.art/git-pull-mirror/config"
 	"gitlab.com/yakshaving.art/git-pull-mirror/github"
@@ -149,25 +150,28 @@ func (ws *WebHooksServer) WebHookHandler(w http.ResponseWriter, r *http.Request)
 
 	metrics.HooksReceivedTotal.Inc()
 
+	id := uuid.NewUUID().String()
+	logrus.Debugf("Received request %s from %s", id, r.RemoteAddr)
+
 	ws.wg.Add(1)
 	defer ws.wg.Done()
 
 	if err := r.ParseForm(); err != nil {
-		logrus.Debugf("Failed to parse form on request %#v", r)
+		logrus.Debugf("Failed to parse form on request %s: %#v", id, r)
 		http.Error(w, fmt.Sprintf("bad request: %s", err), http.StatusBadRequest)
 		return
 	}
 
 	payload := r.FormValue("payload")
 	if payload == "" {
-		logrus.Debugf("No payload in form: %#v", r.Form)
+		logrus.Debugf("No payload in form for request %s: %#v", id, r.Form)
 		http.Error(w, "no payload in form", http.StatusBadRequest)
 		return
 	}
 
 	hookPayload, err := github.ParseHookPayload(payload)
 	if err != nil {
-		logrus.Debugf("Failed to parse hook payload: %s - %s", err, payload)
+		logrus.Debugf("Failed to parse hook payload for request %s: %s - %s", id, err, payload)
 		http.Error(w, fmt.Sprintf("bad request: %s", err), http.StatusBadRequest)
 		return
 	}
@@ -184,7 +188,7 @@ func (ws *WebHooksServer) WebHookHandler(w http.ResponseWriter, r *http.Request)
 	metrics.HooksAcceptedTotal.WithLabelValues(hookPayload.Repository.FullName).Inc()
 
 	ws.wg.Add(1)
-	go ws.updateRepository(repo)
+	go ws.updateRepository(id, repo)
 
 	w.WriteHeader(http.StatusAccepted)
 }
@@ -193,16 +197,16 @@ func (ws *WebHooksServer) WebHookHandler(w http.ResponseWriter, r *http.Request)
 func (ws *WebHooksServer) UpdateAll() {
 	for _, repo := range ws.repositories {
 		ws.wg.Add(1)
-		go ws.updateRepository(repo)
+		go ws.updateRepository("USR2", repo)
 	}
 }
 
-func (ws *WebHooksServer) updateRepository(repo Repository) {
+func (ws *WebHooksServer) updateRepository(requestID string, repo Repository) {
 	defer ws.wg.Done()
 
 	startFetch := time.Now()
 	if err := repo.Fetch(); err != nil {
-		logrus.Errorf("failed to fetch repo %s: %s", repo.origin, err)
+		logrus.Errorf("failed to fetch repo %s for request %s: %s", repo.origin, requestID, err)
 		metrics.HooksFailedTotal.WithLabelValues(repo.origin.ToPath()).Inc()
 		return
 	}
@@ -211,12 +215,12 @@ func (ws *WebHooksServer) updateRepository(repo Repository) {
 
 	startPush := time.Now()
 	if err := repo.Push(); err != nil {
-		logrus.Errorf("failed to push repo %s to %s: %s", repo.origin, repo.target, err)
+		logrus.Errorf("failed to push repo %s to %s for request %s: %s", repo.origin, repo.target, requestID, err)
 		metrics.HooksFailedTotal.WithLabelValues(repo.target.ToPath()).Inc()
 		return
 	}
 	metrics.GitLatencySecondsTotal.WithLabelValues("push", repo.target.ToPath()).Observe(((time.Now().Sub(startPush)).Seconds()))
 	metrics.HooksUpdatedTotal.WithLabelValues(repo.target.ToPath()).Inc()
 
-	logrus.Debugf("updated repository %s in %s", repo.origin, repo.target)
+	logrus.Debugf("repository %s pushed to %s for request %s", repo.origin, repo.target, requestID)
 }

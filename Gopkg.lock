@@ -44,6 +44,12 @@
   revision = "3864e76763d94a6df2f9960b16a20a33da9f9a66"
 
 [[projects]]
+  name = "github.com/pborman/uuid"
+  packages = ["."]
+  revision = "e790cca94e6cc75c7064b1332e63811d4aae1a53"
+  version = "v1.1"
+
+[[projects]]
   name = "github.com/pelletier/go-buffruneio"
   packages = ["."]
   revision = "c37440a7cf42ac63b919c752ca73a85067e05992"
@@ -148,6 +154,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "667a949488b47aa53552ce0a225d30e7168729f127c7666d3f3554222b32a745"
+  inputs-digest = "8dda8f73036857e5da19ef22a066cbd71326986a2d658cb50bc899e9045d9b4c"
   solver-name = "gps-cdcl"
   solver-version = 1
