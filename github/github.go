@@ -2,6 +2,7 @@ package github
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -47,11 +48,23 @@ func (c Client) RegisterWebhook(uri giturl.GitURL) error {
 	req.SetBasicAuth(c.opts.User, c.opts.Token)
 
 	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("webhook creation request failed hard: %s", err)
+	}
+
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent:
 		logrus.Debugf("webhook for %s correctly registered", uri)
 		return nil
+
 	default:
-		return fmt.Errorf("webhook creation request failed with status %d: %s - %s", resp.StatusCode, resp.Status, err)
+		b, err := ioutil.ReadAll(resp.Body)
+		defer resp.Body.Close()
+
+		if err != nil {
+			return fmt.Errorf("webhook creation request failed with status %d %s - failed to read body: %s", resp.StatusCode, resp.Status, err)
+		}
+
+		return fmt.Errorf("webhook creation request failed with status %d %s: %s", resp.StatusCode, resp.Status, string(b))
 	}
 }
