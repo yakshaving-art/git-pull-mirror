@@ -36,7 +36,7 @@ type Repository struct {
 func (r Repository) updateRemotes() error {
 	remote, err := r.repo.Remote(OriginRemote)
 	if err != nil {
-		return fmt.Errorf("Could not obtain %s remote from repo %s", OriginRemote, r.origin)
+		return fmt.Errorf("Could not obtain %s remote from repo %s, consider wiping the local copy", OriginRemote, r.origin)
 	}
 	if remote.Config().URLs[0] != r.origin.URI {
 		r.repo.DeleteRemote(OriginRemote)
@@ -51,7 +51,7 @@ func (r Repository) updateRemotes() error {
 
 	remote, err = r.repo.Remote(TargetRemote)
 	if err != nil {
-		return fmt.Errorf("Could not obtain %s remote from repo %s", TargetRemote, r.target)
+		return fmt.Errorf("Could not obtain %s remote from repo %s, consider wiping the local copy", TargetRemote, r.target)
 	}
 	if remote.Config().URLs[0] != r.target.URI {
 		r.repo.DeleteRemote(TargetRemote)
