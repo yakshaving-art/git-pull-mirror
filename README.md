@@ -52,6 +52,8 @@ directed to it.
     address in which to listen for webhooks (default ":9092")
 - **-repositories.path** *string*
     local path in which to store cloned repositories (default ".")
+- **-skip.webhooks.registration** *bool*
+    don't register webhooks
 - **-sshkey** *string*
     ssh key to use to identify to remotes
 
