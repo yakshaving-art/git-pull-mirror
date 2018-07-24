@@ -90,7 +90,7 @@ TODO. C'mon, that's probably one (albeit long) line starting with `docker run` o
 Here are snippets from the instance startup shell script that will install, enable, configure and run
 the git-pull-mirror as a systemd service in an idempotent way. The exercises of combining them together,
 managing the secrets, and configuring `gitlab.rb` so that nginx serves `/hooks` (hint: no SSL in git-pull-mirror)
-and `/metrics` endpoints are left to the reader.
+and `/metrics` endpoints are left to the reader (hint: `nginx['custom_gitlab_server_config']` should do).
 
 Installing:
 ```bash
