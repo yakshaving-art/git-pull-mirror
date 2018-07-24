@@ -80,3 +80,108 @@ directed to it.
 | github_webhooks_hooks_failed_total            | counter  | total number of repos that failed to update for some reason  |
 | github_webhooks_boot_time_seconds             | gauge    | unix timestamp indicating when the process was started |
 | github_webhooks_last_successful_config_apply  | gauge    | unix timestamp indicating when the last configuration reload was successfully executed  |
+
+## Running
+
+### Cloud native way
+TODO. C'mon, that's probably one (albeit long) line starting with `docker run` or `kubectl`.
+
+### Oldschool way
+Here are snippets from the instance startup shell script that will install, enable, configure and run
+the git-pull-mirror as a systemd service in an idempotent way. The exercises of combining them together,
+managing the secrets, and configuring `gitlab.rb` so that nginx serves `/hooks` (hint: no SSL in git-pull-mirror)
+and `/metrics` endpoints are left to the reader.
+
+Installing:
+```bash
+PULL_MIRROR_VERSION=0.0.6
+PULL_MIRROR_BINARY='/usr/local/bin/git-pull-mirror'
+
+if [[ ! -f "$PULL_MIRROR_BINARY" ]]; then
+	wget -q -P /tmp "https://github.com/yakshaving-art/git-pull-mirror/releases/download/$PULL_MIRROR_VERSION/git-pull-mirror_${PULL_MIRROR_VERSION}_linux_amd64.tar.gz"
+	wget -qO - "https://github.com/yakshaving-art/git-pull-mirror/releases/download/$PULL_MIRROR_VERSION/git-pull-mirror_${PULL_MIRROR_VERSION}_checksums.txt" | \
+		sed -n '/linux_amd64/ s|  |  /tmp/|p;' | \
+		sha256sum --quiet --check # will crap out on mismatch
+	tar zxf "/tmp/git-pull-mirror_${PULL_MIRROR_VERSION}_linux_amd64.tar.gz" -C "$(dirname "$PULL_MIRROR_BINARY")"
+	chmod 0755 "$PULL_MIRROR_BINARY"
+	rm -f "/tmp/git-pull-mirror_${PULL_MIRROR_VERSION}_linux_amd64.tar.gz"
+fi
+```
+
+Adding user and its ssh keys:
+```bash
+PULL_MIRROR_USER="techguru"
+PULL_MIRROR_HOME="/home/$PULL_MIRROR_USER"
+getent passwd "$PULL_MIRROR_USER" || \
+	adduser --home "$PULL_MIRROR_HOME" \
+		--disabled-login \
+		--disabled-password \
+		--gecos "aka The Mirrorbot" \
+		"$PULL_MIRROR_USER"
+
+# copy .ssh from secret storage, or regen with:
+# ssh-keygen -t ed25519 -C 'MirrorBot key: techguru@mygtlb' -N '' -f id_ed25519_techguru
+cp -rp "/path/to/secrets/folder/mirrorbot-.ssh" "$PULL_MIRROR_HOME/.ssh"
+chown -R "$PULL_MIRROR_USER:$PULL_MIRROR_USER" "$PULL_MIRROR_HOME"
+chmod 0700 "$PULL_MIRROR_HOME/.ssh"
+chmod 0400 "$PULL_MIRROR_HOME/.ssh/id_ed25519_techguru"
+```
+
+Set up env file for service (add fingerprints to `known_hosts` file, or just treat it
+as secret and copy from secret storage during boot):
+``` bash
+test -f /etc/gitlab/git-pull-mirror.conf || cat > /etc/gitlab/git-pull-mirror.conf <<EOF
+SSH_KEY=".ssh/id_ed25519_techguru"
+SSH_KNOWN_HOSTS=".ssh/known_hosts"
+CALLBACK_URL="https://gitlab.my.tld/hooks"
+GITHUB_USER="my-cbot"
+GITHUB_TOKEN="pszsetme"
+EOF
+```
+
+Create systemd unit file (sysV init script left as an exercise
+for even older school):
+
+```bash
+cat > /etc/systemd/system/git-pull-mirror.service <<EOF
+[Unit]
+Description=Git Pull Mirror
+After=gitlab-runner.target
+ConditionFileIsExecutable=$PULL_MIRROR_BINARY
+[Service]
+User=$PULL_MIRROR_USER
+WorkingDirectory=$PULL_MIRROR_HOME
+EnvironmentFile=/etc/gitlab/git-pull-mirror.conf
+StartLimitInterval=5
+StartLimitBurst=10
+ExecStart=$PULL_MIRROR_BINARY -listen.address="127.0.0.1:9092" -config.file="$PULL_MIRROR_HOME/mirrors.yml" -skip.webhooks.registration="true" -debug
+Restart=always
+RestartSec=120
+[Install]
+WantedBy=multi-user.target
+EOF
+chmod 0644 /etc/systemd/system/git-pull-mirror.service
+```
+
+Create `mirrors.yml` in the proper location:
+
+```bash
+cat > "$PULL_MIRROR_HOME/mirrors.yml" <<EOF
+---
+repositories:
+- origin: git@github.com:source/source-repo1.git
+  target: git@gitlab.my.tld:dst/dst-repo1.git
+
+- origin: git@github.com:source/source-repo2.git
+  target: git@gitlab.my.tld:dst/dst-repo2.git
+EOF
+chown "$PULL_MIRROR_USER:$PULL_MIRROR_USER" "$PULL_MIRROR_HOME/mirrors.yml"
+chmod 0644 "$PULL_MIRROR_HOME/mirrors.yml"
+```
+
+Don't forget to add pubkey to both github and gitlab, and do a:
+```bash
+systemctl daemon-reload
+systemctl enable git-pull-mirror.service
+systemctl start git-pull-mirror.service
+```
