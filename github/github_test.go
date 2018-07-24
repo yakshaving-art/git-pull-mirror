@@ -25,12 +25,15 @@ func TestRegisterWebhooks(t *testing.T) {
 		assertEquals(t, r.FormValue("hub.callback"), "http://myhostname/mypath")
 	}))
 
-	client := github.New(github.ClientOpts{
+	client, err := github.New(github.ClientOpts{
 		CallbackURL: "http://myhostname/mypath",
 		GitHubURL:   server.URL,
 		Token:       "mytoken",
 		User:        "myuser",
 	})
+	if err != nil {
+		t.Fatalf("Failed to create github client: %s", err)
+	}
 
 	u, _ := url.Parse("http://mygithosing/mygroup/myproject")
 	must(t, client.RegisterWebhook(u))

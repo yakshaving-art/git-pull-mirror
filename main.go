@@ -8,22 +8,28 @@ import (
 	"strings"
 	"syscall"
 
+	_ "gitlab.com/yakshaving.art/git-pull-mirror/metrics"
+
 	"github.com/sirupsen/logrus"
 	"gitlab.com/yakshaving.art/git-pull-mirror/config"
 	"gitlab.com/yakshaving.art/git-pull-mirror/github"
-	_ "gitlab.com/yakshaving.art/git-pull-mirror/metrics"
 	"gitlab.com/yakshaving.art/git-pull-mirror/server"
+	"gitlab.com/yakshaving.art/git-pull-mirror/webhooks"
 )
 
 var (
-	address          = flag.String("listen.address", ":9092", "address in which to listen for webhooks")
-	configFile       = flag.String("config.file", "mirrors.yml", "configuration file")
-	callbackURL      = flag.String("callback.url", os.Getenv("CALLBACK_URL"), "callback url to report to github for webhooks, must include schema and domain")
-	debug            = flag.Bool("debug", false, "enable debugging log level")
-	dryrun           = flag.Bool("dryrun", false, "execute configuration loading, don't actually do anything")
-	githubUser       = flag.String("github.user", os.Getenv("GITHUB_USER"), "github username, used to configure the webhooks through the API")
-	githubToken      = flag.String("github.token", os.Getenv("GITHUB_TOKEN"), "github token, used as the password to configure the webhooks through the API")
-	githubURL        = flag.String("github.url", "https://api.github.com/hub", "api url to register webhooks")
+	address     = flag.String("listen.address", ":9092", "address in which to listen for webhooks")
+	configFile  = flag.String("config.file", "mirrors.yml", "configuration file")
+	callbackURL = flag.String("callback.url", os.Getenv("CALLBACK_URL"), "callback url to report to github for webhooks, must include schema and domain")
+	debug       = flag.Bool("debug", false, "enable debugging log level")
+	dryrun      = flag.Bool("dryrun", false, "execute configuration loading, don't actually do anything")
+	githubUser  = flag.String("github.user", os.Getenv("GITHUB_USER"), "github username, used to configure the webhooks through the API")
+	githubToken = flag.String("github.token", os.Getenv("GITHUB_TOKEN"), "github token, used as the password to configure the webhooks through the API")
+	githubURL   = flag.String("github.url", "https://api.github.com/hub", "github api url to register webhooks")
+	// gitlabUser       = flag.String("gitlab.user", os.Getenv("GITLAB_USER"), "gitlab username, used to configure the webhooks through the API")
+	// gitlabToken      = flag.String("gitlab.token", os.Getenv("GITLAB_TOKEN"), "gitlab token, used as the password to configure the webhooks through the API")
+	// gitlanURL        = flag.String("gitlab.url", "", "gitlab api url to register webhooks")
+	// webhooksTarget = flag.String("webhooks.target", "github", "Used to define different kinds of webhooks clients, GitHub by default")
 	repoPath         = flag.String("repositories.path", ".", "local path in which to store cloned repositories")
 	skipRegistration = flag.Bool("skip.webhooks.registration", false, "don't register webhooks")
 	sshkey           = flag.String("sshkey", os.Getenv("SSH_KEY"), "ssh key to use to identify to remotes")
@@ -52,17 +58,16 @@ func main() {
 		logrus.Fatalf("Failed to load configuration: %s", err)
 	}
 
-	s := server.New(server.WebHooksServerOptions{
+	client, err := createClient()
+	if err != nil {
+		logrus.Fatalf("Failed to create GitHub Webhooks client: %s", err)
+	}
+
+	s := server.New(client, server.WebHooksServerOptions{
 		GitTimeoutSeconds:        *timeoutSeconds,
 		RepositoriesPath:         *repoPath,
 		SSHPrivateKey:            *sshkey,
 		SkipWebhooksRegistration: *skipRegistration,
-		GitHubClientOpts: github.ClientOpts{
-			User:        *githubUser,
-			Token:       *githubToken,
-			GitHubURL:   *githubURL,
-			CallbackURL: *callbackURL,
-		},
 	})
 
 	if err := s.Validate(); err != nil {
@@ -154,4 +159,14 @@ func checkArgs() {
 	if *timeoutSeconds <= 0 {
 		logrus.Fatalf("Invalid timeout seconds %d, it should be 1 or higher", *timeoutSeconds)
 	}
+}
+
+func createClient() (webhooks.Client, error) {
+	// TODO: based on webhooksTarget we should create a github client or something else
+	return github.New(github.ClientOpts{
+		User:        *githubUser,
+		Token:       *githubToken,
+		GitHubURL:   *githubURL,
+		CallbackURL: *callbackURL,
+	})
 }
