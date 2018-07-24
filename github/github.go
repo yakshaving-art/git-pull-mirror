@@ -25,10 +25,26 @@ type ClientOpts struct {
 }
 
 // New creates a new Client
-func New(opts ClientOpts) Client {
-	return Client{
-		opts: opts,
+func New(opts ClientOpts) (Client, error) {
+	c := Client{opts}
+	if opts.User == "" {
+		return c, fmt.Errorf("GitHub username is necessary for registering webhooks")
 	}
+	if opts.Token == "" {
+		return c, fmt.Errorf("GitHub token is necessary for registering webhooks")
+	}
+	if opts.GitHubURL == "" {
+		return c, fmt.Errorf("GitHub url is necessary for registering webhooks")
+	}
+	if opts.CallbackURL == "" {
+		return c, fmt.Errorf("Callback url is necessary for registering webhooks")
+	}
+	return c, nil
+}
+
+// GetCallbackURL implements webhooks.Client interface
+func (c Client) GetCallbackURL() string {
+	return c.opts.CallbackURL
 }
 
 // RegisterWebhook registers a new webhook

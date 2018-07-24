@@ -3,6 +3,7 @@ package github
 import (
 	"encoding/json"
 	"fmt"
+	"gitlab.com/yakshaving.art/git-pull-mirror/webhooks"
 )
 
 // Repository holds the repository information
@@ -22,8 +23,13 @@ type HookPayload struct {
 	Hook       Hook       `json:"hook"`
 }
 
+// GetRepository implements webhook.HookPayload interface
+func (h HookPayload) GetRepository() string {
+	return h.Repository.FullName
+}
+
 // ParseHookPayload parses a payload string and returns the payload as a struct
-func ParseHookPayload(payload string) (HookPayload, error) {
+func (c Client) ParseHookPayload(payload string) (webhooks.HookPayload, error) {
 	var hookPayload HookPayload
 	if err := json.Unmarshal([]byte(payload), &hookPayload); err != nil {
 		return hookPayload, fmt.Errorf("could not parse hook payload: %s", err)

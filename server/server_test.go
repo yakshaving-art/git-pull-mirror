@@ -21,15 +21,16 @@ func TestBuildingAServerAndConfigureWithEmptyConfigWorks(t *testing.T) {
 
 	defer os.RemoveAll(tmpDir)
 
-	s := New(WebHooksServerOptions{
+	client, err := github.New(github.ClientOpts{
+		CallbackURL: "http://myhostname/mypath",
+		GitHubURL:   "http://localhost",
+		Token:       "mytoken",
+		User:        "myuser",
+	})
+	s := New(client, WebHooksServerOptions{
 		GitTimeoutSeconds:        10,
 		RepositoriesPath:         tmpDir,
 		SkipWebhooksRegistration: true,
-		GitHubClientOpts: github.ClientOpts{
-			CallbackURL: "https://example.com/",
-			Token:       "xxx",
-			User:        "user",
-		},
 	})
 	originURL, err := url.Parse("https://github.com/yakshaving-art/git-pull-mirror.git")
 	must(t, "could not parse origin url", err)

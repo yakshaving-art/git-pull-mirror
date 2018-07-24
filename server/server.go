@@ -11,8 +11,8 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/yakshaving.art/git-pull-mirror/config"
-	"gitlab.com/yakshaving.art/git-pull-mirror/github"
 	"gitlab.com/yakshaving.art/git-pull-mirror/metrics"
+	"gitlab.com/yakshaving.art/git-pull-mirror/webhooks"
 )
 
 // WebHooksServer is the server that will listen for webhooks calls and handle them
@@ -20,11 +20,12 @@ type WebHooksServer struct {
 	wg   *sync.WaitGroup
 	lock *sync.Mutex
 
-	opts         WebHooksServerOptions
-	config       config.Config
-	repositories map[string]Repository
-	running      bool
-	callbackPath string
+	WebHooksClient webhooks.Client
+	opts           WebHooksServerOptions
+	config         config.Config
+	repositories   map[string]Repository
+	running        bool
+	callbackPath   string
 }
 
 // WebHooksServerOptions holds server configuration options
@@ -33,34 +34,20 @@ type WebHooksServerOptions struct {
 	RepositoriesPath         string
 	SSHPrivateKey            string
 	SkipWebhooksRegistration bool
-	GitHubClientOpts         github.ClientOpts
 }
 
 // New returns a new unconfigured webhooks server
-func New(opts WebHooksServerOptions) *WebHooksServer {
+func New(client webhooks.Client, opts WebHooksServerOptions) *WebHooksServer {
 	return &WebHooksServer{
-		wg:   &sync.WaitGroup{},
-		lock: &sync.Mutex{},
-		opts: opts,
+		wg:             &sync.WaitGroup{},
+		lock:           &sync.Mutex{},
+		opts:           opts,
+		WebHooksClient: client,
 	}
 }
 
 // Validate checks that the webhooks server is properly configured
 func (ws *WebHooksServer) Validate() error {
-	if !ws.opts.SkipWebhooksRegistration {
-		if ws.opts.GitHubClientOpts.User == "" {
-			return fmt.Errorf("GitHub username is necessary for registering webhooks")
-		}
-		if ws.opts.GitHubClientOpts.Token == "" {
-			return fmt.Errorf("GitHub token is necessary for registering webhooks")
-		}
-		if ws.opts.GitHubClientOpts.GitHubURL == "" {
-			return fmt.Errorf("GitHub url is necessary for registering webhooks")
-		}
-		if ws.opts.GitHubClientOpts.CallbackURL == "" {
-			return fmt.Errorf("Callback url is necessary for registering webhooks")
-		}
-	}
 	if ws.opts.GitTimeoutSeconds == 0 {
 		return fmt.Errorf("git timeout cannot be 0")
 	}
@@ -82,13 +69,13 @@ func (ws *WebHooksServer) Validate() error {
 func (ws *WebHooksServer) Configure(c config.Config) error {
 	logrus.Debug("loading configuration")
 
-	callback, err := url.Parse(ws.opts.GitHubClientOpts.CallbackURL)
+	client := ws.WebHooksClient
+	callback, err := url.Parse(client.GetCallbackURL())
 	if err != nil {
-		return fmt.Errorf("could not parse callback url %s: %s", ws.opts.GitHubClientOpts.CallbackURL, err)
+		return fmt.Errorf("could not parse callback url %s: %s", client.GetCallbackURL(), err)
 	}
 
 	g := newGitClient(ws.opts)
-	gh := github.New(ws.opts.GitHubClientOpts)
 
 	repositories := make(map[string]Repository, len(c.Repositories))
 	errors := make(chan error, len(c.Repositories))
@@ -111,7 +98,7 @@ func (ws *WebHooksServer) Configure(c config.Config) error {
 			}
 
 			if !ws.opts.SkipWebhooksRegistration {
-				if err = gh.RegisterWebhook(r.OriginURL); err != nil {
+				if err = client.RegisterWebhook(r.OriginURL); err != nil {
 					errors <- fmt.Errorf("failed to register webhooks for %s: %s", r.OriginURL, err)
 					return
 				}
@@ -201,7 +188,8 @@ func (ws *WebHooksServer) WebHookHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	hookPayload, err := github.ParseHookPayload(payload)
+	client := ws.WebHooksClient
+	hookPayload, err := client.ParseHookPayload(payload)
 	if err != nil {
 		logrus.Debugf("Failed to parse hook payload for request %s: %s - %s", id, err, payload)
 		http.Error(w, fmt.Sprintf("bad request: %s", err), http.StatusBadRequest)
@@ -211,13 +199,13 @@ func (ws *WebHooksServer) WebHookHandler(w http.ResponseWriter, r *http.Request)
 	ws.lock.Lock()
 	defer ws.lock.Unlock()
 
-	repo, ok := ws.repositories[hookPayload.Repository.FullName]
+	repo, ok := ws.repositories[hookPayload.GetRepository()]
 	if !ok {
-		http.Error(w, fmt.Sprintf("unknown repo %s", hookPayload.Repository.FullName), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("unknown repo %s", hookPayload.GetRepository()), http.StatusNotFound)
 		return
 	}
 
-	metrics.HooksAcceptedTotal.WithLabelValues(hookPayload.Repository.FullName).Inc()
+	metrics.HooksAcceptedTotal.WithLabelValues(hookPayload.GetRepository()).Inc()
 
 	ws.wg.Add(1)
 	go ws.updateRepository(id, repo)
