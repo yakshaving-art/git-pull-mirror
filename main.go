@@ -28,11 +28,7 @@ var (
 	githubURL   = flag.String("github.url", "https://api.github.com/hub", "github api url to register webhooks")
 	// gitlabUser       = flag.String("gitlab.user", os.Getenv("GITLAB_USER"), "gitlab username, used to configure the webhooks through the API")
 	// gitlabToken      = flag.String("gitlab.token", os.Getenv("GITLAB_TOKEN"), "gitlab token, used as the password to configure the webhooks through the API")
-<<<<<<< d7720e7e5ffc8b324f83bb6144ca7e24a653778b
 	// gitlabURL        = flag.String("gitlab.url", "", "gitlab api url to register webhooks")
-=======
-	// gitlanURL        = flag.String("gitlab.url", "", "gitlab api url to register webhooks")
->>>>>>> Add some tooling to split the webhooks client later on
 	// webhooksTarget = flag.String("webhooks.target", "github", "Used to define different kinds of webhooks clients, GitHub by default")
 	repoPath         = flag.String("repositories.path", ".", "local path in which to store cloned repositories")
 	skipRegistration = flag.Bool("skip.webhooks.registration", false, "don't register webhooks")
