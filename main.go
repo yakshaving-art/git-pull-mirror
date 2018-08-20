@@ -10,7 +10,9 @@ import (
 
 	_ "gitlab.com/yakshaving.art/git-pull-mirror/metrics"
 
+	"github.com/onrik/logrus/filename"
 	"github.com/sirupsen/logrus"
+
 	"gitlab.com/yakshaving.art/git-pull-mirror/config"
 	"gitlab.com/yakshaving.art/git-pull-mirror/github"
 	"gitlab.com/yakshaving.art/git-pull-mirror/server"
@@ -37,6 +39,7 @@ var (
 )
 
 func main() {
+	logrus.AddHook(filename.NewHook())
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 	})
