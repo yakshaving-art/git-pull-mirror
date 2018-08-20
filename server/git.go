@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jpillora/backoff"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/yakshaving.art/git-pull-mirror/url"
 
@@ -203,21 +204,37 @@ func (r Repository) Push() error {
 		return fmt.Errorf("failed set up auth to push to target %s: %s", r.target, err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), r.client.GitTimeoutSeconds())
-	defer cancel()
-
-	logrus.Debugf("pushing to %s", r.target)
-	err = r.repo.PushContext(ctx, &git.PushOptions{
-		Auth:       auth,
-		RemoteName: TargetRemote,
-		RefSpecs: []config.RefSpec{
-			"+refs/remotes/origin/*:refs/heads/*",
-			"+refs/tags/*:refs/tags/*",
-		},
-	})
-	if err == git.NoErrAlreadyUpToDate {
-		logrus.Debugf("%s is already up to date", r.target)
-		return nil
+	b := &backoff.Backoff{
+		Min:    100 * time.Millisecond,
+		Max:    1 * time.Second,
+		Factor: 2,
+		Jitter: true,
 	}
-	return err
+
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), r.client.GitTimeoutSeconds())
+		defer cancel()
+
+		logrus.Debugf("pushing to %s", r.target)
+		err = r.repo.PushContext(ctx, &git.PushOptions{
+			Auth:       auth,
+			RemoteName: TargetRemote,
+			RefSpecs: []config.RefSpec{
+				"+refs/remotes/origin/*:refs/heads/*",
+				"+refs/tags/*:refs/tags/*",
+			},
+		})
+		if err == git.NoErrAlreadyUpToDate {
+			logrus.Debugf("%s is already up to date", r.target)
+			return nil
+		}
+
+		if err != nil && b.Attempt() < 3 {
+			logrus.Warnf("failed to push to remote repo %s: %s... retrying", r.target, err)
+			time.Sleep(b.Duration())
+			continue
+		}
+
+		return err
+	}
 }
