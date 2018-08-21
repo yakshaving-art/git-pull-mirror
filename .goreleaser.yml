@@ -16,6 +16,7 @@ builds:
     - "6"
   main: .
   binary: git-pull-mirror
+  ldflags: -s -w -X gitlab.com/yakshaving.art/git-pull-mirror/version.Version={{.Version}} -X gitlab.com/yakshaving.art/git-pull-mirror/version.Commit={{.Commit}} -X gitlab.com/yakshaving.art/git-pull-mirror/version.Date={{.Date}}
 snapshot:
   name_template: SNAPSHOT-{{ .Commit }}
 checksum:

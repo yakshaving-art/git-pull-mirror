@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/url"
 	"os"
 	"os/signal"
@@ -16,6 +17,7 @@ import (
 	"gitlab.com/yakshaving.art/git-pull-mirror/config"
 	"gitlab.com/yakshaving.art/git-pull-mirror/github"
 	"gitlab.com/yakshaving.art/git-pull-mirror/server"
+	"gitlab.com/yakshaving.art/git-pull-mirror/version"
 	"gitlab.com/yakshaving.art/git-pull-mirror/webhooks"
 )
 
@@ -36,6 +38,8 @@ var (
 	skipRegistration = flag.Bool("skip.webhooks.registration", false, "don't register webhooks")
 	sshkey           = flag.String("sshkey", os.Getenv("SSH_KEY"), "ssh key to use to identify to remotes")
 	timeoutSeconds   = flag.Int("git.timeout.seconds", 60, "git operations timeout in seconds")
+
+	showVersion = flag.Bool("version", false, "print the version and exit")
 )
 
 func main() {
@@ -45,6 +49,11 @@ func main() {
 	})
 
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("Version: %s Commit: %s Date: %s\n", version.Version, version.Commit, version.Date)
+		os.Exit(0)
+	}
 
 	checkArgs()
 
