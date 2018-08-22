@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"sync"
 	"time"
 
@@ -30,7 +29,7 @@ type WebHooksServer struct {
 
 // WebHooksServerOptions holds server configuration options
 type WebHooksServerOptions struct {
-	GitTimeoutSeconds        int
+	GitTimeoutSeconds        uint64
 	RepositoriesPath         string
 	SSHPrivateKey            string
 	SkipWebhooksRegistration bool
@@ -46,31 +45,12 @@ func New(client webhooks.Client, opts WebHooksServerOptions) *WebHooksServer {
 	}
 }
 
-// Validate checks that the webhooks server is properly configured
-func (ws *WebHooksServer) Validate() error {
-	if ws.opts.GitTimeoutSeconds == 0 {
-		return fmt.Errorf("git timeout cannot be 0")
-	}
-
-	f, err := os.Stat(ws.opts.RepositoriesPath)
-	if err != nil {
-		return fmt.Errorf("can't stat repositories path folder %s", ws.opts.RepositoriesPath)
-	}
-	if !f.IsDir() {
-		return fmt.Errorf("repositories path folder %s it not a folder", ws.opts.RepositoriesPath)
-	}
-
-	return nil
-}
-
-// Configure loads the configuration on the server and sets it. Can fail if any
-// part of the configuration fails to be executed, for example: if an origin git
-// repo is non existing.
+// Configure sets up the server
 func (ws *WebHooksServer) Configure(c config.Config) error {
 	logrus.Debug("loading configuration")
 
 	client := ws.WebHooksClient
-	callback, err := url.Parse(client.GetCallbackURL())
+	callback, err := url.ParseRequestURI(client.GetCallbackURL())
 	if err != nil {
 		return fmt.Errorf("could not parse callback url %s: %s", client.GetCallbackURL(), err)
 	}
@@ -135,11 +115,17 @@ func (ws *WebHooksServer) Configure(c config.Config) error {
 }
 
 // Run starts the execution of the server, forever
-func (ws *WebHooksServer) Run(address string) {
-	ws.running = true
-	http.HandleFunc(ws.callbackPath, ws.WebHookHandler)
+func (ws *WebHooksServer) Run(address string, c config.Config, ready chan interface{}) {
+	logrus.Debugf("Booting up server")
+	if err := ws.Configure(c); err != nil {
+		logrus.Warnf("failed to configure server propertly: %s", err)
+	}
 
+	http.HandleFunc(ws.callbackPath, ws.WebHookHandler)
 	logrus.Infof("starting listener on %s", address)
+	ws.running = true
+
+	ready <- true
 	if err := http.ListenAndServe(address, nil); err != nil {
 		logrus.Fatalf("failed to start http server: %s", err)
 	}
