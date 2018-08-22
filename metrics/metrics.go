@@ -12,12 +12,30 @@ var subsystem = "webhooks"
 
 // Prometheus metrics
 var (
+	ServerIsUp = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: subsystem,
+		Name:      "up",
+		Help:      "whether the service is ready to receive requests or not",
+	})
+	RepoIsUp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: subsystem,
+		Name:      "repo_up",
+		Help:      "whether a repo is succeeding or failing to read or write",
+	}, []string{"repo"})
 	HooksReceivedTotal = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: subsystem,
 		Name:      "hooks_received_total",
 		Help:      "total number of hooks received",
 	})
+	HooksRetriedTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: subsystem,
+		Name:      "hooks_retried_total",
+		Help:      "total number of hooks that failed and were retried",
+	}, []string{"repo"})
 	HooksAcceptedTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: subsystem,
@@ -59,6 +77,8 @@ var (
 
 func init() {
 	bootTime.Set(float64(time.Now().Unix()))
+	ServerIsUp.Set(0)
+
 	prometheus.MustRegister(bootTime)
 	prometheus.MustRegister(LastSuccessfulConfigApply)
 	prometheus.MustRegister(HooksReceivedTotal)
@@ -66,6 +86,10 @@ func init() {
 	prometheus.MustRegister(HooksUpdatedTotal)
 	prometheus.MustRegister(HooksFailedTotal)
 	prometheus.MustRegister(GitLatencySecondsTotal)
+	prometheus.MustRegister(RepoIsUp)
+	prometheus.MustRegister(ServerIsUp)
+	prometheus.MustRegister(HooksRetriedTotal)
 
 	http.Handle("/metrics", prometheus.Handler())
+
 }

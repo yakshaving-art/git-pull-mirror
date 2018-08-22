@@ -24,15 +24,15 @@ type WebHooksServer struct {
 	config         config.Config
 	repositories   map[string]Repository
 	running        bool
+	ready          bool
 	callbackPath   string
 }
 
 // WebHooksServerOptions holds server configuration options
 type WebHooksServerOptions struct {
-	GitTimeoutSeconds        uint64
-	RepositoriesPath         string
-	SSHPrivateKey            string
-	SkipWebhooksRegistration bool
+	GitTimeoutSeconds uint64
+	RepositoriesPath  string
+	SSHPrivateKey     string
 }
 
 // New returns a new unconfigured webhooks server
@@ -49,12 +49,6 @@ func New(client webhooks.Client, opts WebHooksServerOptions) *WebHooksServer {
 func (ws *WebHooksServer) Configure(c config.Config) error {
 	logrus.Debug("loading configuration")
 
-	client := ws.WebHooksClient
-	callback, err := url.ParseRequestURI(client.GetCallbackURL())
-	if err != nil {
-		return fmt.Errorf("could not parse callback url %s: %s", client.GetCallbackURL(), err)
-	}
-
 	g := newGitClient(ws.opts)
 
 	repositories := make(map[string]Repository, len(c.Repositories))
@@ -69,19 +63,19 @@ func (ws *WebHooksServer) Configure(c config.Config) error {
 			repo, err := g.CloneOrOpen(r.OriginURL, r.TargetURL)
 			if err != nil {
 				errors <- fmt.Errorf("failed to clone or open %s: %s", r.OriginURL, err)
+				metrics.RepoIsUp.WithLabelValues(r.OriginURL.ToPath()).Set(0)
 				return
 			}
 
 			if err = repo.Fetch(); err != nil {
 				errors <- fmt.Errorf("failed to fetch %s: %s", r.OriginURL, err)
+				metrics.RepoIsUp.WithLabelValues(r.OriginURL.ToPath()).Set(0)
 				return
 			}
 
-			if !ws.opts.SkipWebhooksRegistration {
-				if err = client.RegisterWebhook(r.OriginURL); err != nil {
-					errors <- fmt.Errorf("failed to register webhooks for %s: %s", r.OriginURL, err)
-					return
-				}
+			if err = ws.WebHooksClient.RegisterWebhook(r.OriginURL); err != nil {
+				// We're skipping these errors on purporse to allow the server to boot up even if webhooks fail
+				logrus.Warnf("failed to register webhooks for %s: %s", r.OriginURL, err)
 			}
 
 			repositories[r.OriginURL.ToKey()] = repo
@@ -104,9 +98,10 @@ func (ws *WebHooksServer) Configure(c config.Config) error {
 	ws.lock.Lock()
 	defer ws.lock.Unlock()
 
-	ws.callbackPath = callback.Path
 	ws.config = c
 	ws.repositories = repositories
+	ws.ready = true
+	metrics.ServerIsUp.Set(1)
 
 	metrics.LastSuccessfulConfigApply.Set(float64(time.Now().Unix()))
 
@@ -120,6 +115,12 @@ func (ws *WebHooksServer) Run(address string, c config.Config, ready chan interf
 	if err := ws.Configure(c); err != nil {
 		logrus.Warnf("failed to configure server propertly: %s", err)
 	}
+
+	callback, err := url.ParseRequestURI(ws.WebHooksClient.GetCallbackURL())
+	if err != nil {
+		logrus.Fatalf("could not parse callback url %s: %s", ws.WebHooksClient.GetCallbackURL(), err)
+	}
+	ws.callbackPath = callback.Path
 
 	http.HandleFunc(ws.callbackPath, ws.WebHookHandler)
 	logrus.Infof("starting listener on %s", address)
@@ -146,6 +147,9 @@ func (ws *WebHooksServer) WebHookHandler(w http.ResponseWriter, r *http.Request)
 	if !ws.running {
 		http.Error(w, "server is shutting down", http.StatusServiceUnavailable)
 		return
+	}
+	if !ws.ready {
+		http.Error(w, "Server is not ready to receive requests", http.StatusServiceUnavailable)
 	}
 
 	if r.Method != "POST" {
@@ -201,6 +205,11 @@ func (ws *WebHooksServer) WebHookHandler(w http.ResponseWriter, r *http.Request)
 
 // UpdateAll triggers an update for all the repositories
 func (ws *WebHooksServer) UpdateAll() {
+	if !ws.ready {
+		logrus.Warnf("Can't update all repos when the service is not ready")
+		return
+	}
+
 	for _, repo := range ws.repositories {
 		ws.wg.Add(1)
 		go ws.updateRepository("USR2", repo)
@@ -214,19 +223,23 @@ func (ws *WebHooksServer) updateRepository(requestID string, repo Repository) {
 	if err := repo.Fetch(); err != nil {
 		logrus.Errorf("failed to fetch repo %s for request %s: %s", repo.origin, requestID, err)
 		metrics.HooksFailedTotal.WithLabelValues(repo.origin.ToPath()).Inc()
+		metrics.RepoIsUp.WithLabelValues(repo.origin.ToPath()).Set(0)
 		return
 	}
 	metrics.GitLatencySecondsTotal.WithLabelValues("fetch", repo.origin.ToPath()).Observe(((time.Now().Sub(startFetch)).Seconds()))
 	metrics.HooksUpdatedTotal.WithLabelValues(repo.origin.ToPath()).Inc()
+	metrics.RepoIsUp.WithLabelValues(repo.origin.ToPath()).Set(1)
 
 	startPush := time.Now()
 	if err := repo.Push(); err != nil {
 		logrus.Errorf("failed to push repo %s to %s for request %s: %s", repo.origin, repo.target, requestID, err)
 		metrics.HooksFailedTotal.WithLabelValues(repo.target.ToPath()).Inc()
+		metrics.RepoIsUp.WithLabelValues(repo.target.ToPath()).Set(0)
 		return
 	}
 	metrics.GitLatencySecondsTotal.WithLabelValues("push", repo.target.ToPath()).Observe(((time.Now().Sub(startPush)).Seconds()))
 	metrics.HooksUpdatedTotal.WithLabelValues(repo.target.ToPath()).Inc()
+	metrics.RepoIsUp.WithLabelValues(repo.target.ToPath()).Set(1)
 
 	logrus.Debugf("repository %s pushed to %s for request %s", repo.origin, repo.target, requestID)
 }
