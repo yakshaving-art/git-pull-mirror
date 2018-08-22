@@ -3,10 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	_ "gitlab.com/yakshaving.art/git-pull-mirror/metrics"
@@ -21,89 +19,59 @@ import (
 	"gitlab.com/yakshaving.art/git-pull-mirror/webhooks"
 )
 
-var (
-	address     = flag.String("listen.address", ":9092", "address in which to listen for webhooks")
-	configFile  = flag.String("config.file", "mirrors.yml", "configuration file")
-	callbackURL = flag.String("callback.url", os.Getenv("CALLBACK_URL"), "callback url to report to github for webhooks, must include schema and domain")
-	debug       = flag.Bool("debug", false, "enable debugging log level")
-	dryrun      = flag.Bool("dryrun", false, "execute configuration loading, don't actually do anything")
-	githubUser  = flag.String("github.user", os.Getenv("GITHUB_USER"), "github username, used to configure the webhooks through the API")
-	githubToken = flag.String("github.token", os.Getenv("GITHUB_TOKEN"), "github token, used as the password to configure the webhooks through the API")
-	githubURL   = flag.String("github.url", "https://api.github.com/hub", "github api url to register webhooks")
-	// gitlabUser       = flag.String("gitlab.user", os.Getenv("GITLAB_USER"), "gitlab username, used to configure the webhooks through the API")
-	// gitlabToken      = flag.String("gitlab.token", os.Getenv("GITLAB_TOKEN"), "gitlab token, used as the password to configure the webhooks through the API")
-	// gitlabURL        = flag.String("gitlab.url", "", "gitlab api url to register webhooks")
-	// webhooksTarget = flag.String("webhooks.target", "github", "Used to define different kinds of webhooks clients, GitHub by default")
-	repoPath         = flag.String("repositories.path", ".", "local path in which to store cloned repositories")
-	skipRegistration = flag.Bool("skip.webhooks.registration", false, "don't register webhooks")
-	sshkey           = flag.String("sshkey", os.Getenv("SSH_KEY"), "ssh key to use to identify to remotes")
-	timeoutSeconds   = flag.Int("git.timeout.seconds", 60, "git operations timeout in seconds")
-
-	showVersion = flag.Bool("version", false, "print the version and exit")
-)
-
 func main() {
-	logrus.AddHook(filename.NewHook())
-	logrus.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-	})
+	setupLogger()
 
-	flag.Parse()
+	args := parseArgs()
 
-	if *showVersion {
+	if args.ShowVersion {
 		fmt.Printf("Version: %s Commit: %s Date: %s\n", version.Version, version.Commit, version.Date)
 		os.Exit(0)
 	}
 
-	checkArgs()
-
-	if *debug {
+	if args.Debug {
 		toggleDebugLogLevel()
 	}
 
-	if _, err := os.Stat(*repoPath); err != nil {
-		logrus.Fatalf("failed to stat local repositories path %s: %s", *repoPath, err)
+	if err := args.Check(); err != nil {
+		logrus.Fatalf("Cannot start, arguments are invalid: %s", err)
+		os.Exit(1)
 	}
 
-	c, err := config.LoadConfiguration(*configFile)
+	c, err := config.LoadConfiguration(args.ConfigFile)
 	if err != nil {
 		logrus.Fatalf("Failed to load configuration: %s", err)
 	}
 
-	client, err := createClient()
+	client, err := createClient(args)
 	if err != nil {
 		logrus.Fatalf("Failed to create GitHub Webhooks client: %s", err)
 	}
 
-	s := server.New(client, server.WebHooksServerOptions{
-		GitTimeoutSeconds:        *timeoutSeconds,
-		RepositoriesPath:         *repoPath,
-		SSHPrivateKey:            *sshkey,
-		SkipWebhooksRegistration: *skipRegistration,
-	})
-
-	if err := s.Validate(); err != nil {
-		logrus.Fatalf("Webhooks server failed to validate the configuration: %s", err)
-	}
-
-	if *dryrun {
+	if args.DryRun {
 		os.Exit(0)
 	}
 
-	if err := s.Configure(c); err != nil {
-		logrus.Fatalf("Failed to configure webhooks server: %s", err)
-	}
+	s := server.New(client, server.WebHooksServerOptions{
+		GitTimeoutSeconds:        args.TimeoutSeconds,
+		RepositoriesPath:         args.RepositoriesPath,
+		SSHPrivateKey:            args.SSHKey,
+		SkipWebhooksRegistration: args.SkipRegistration,
+	})
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGHUP, syscall.SIGINT, syscall.SIGUSR1, syscall.SIGUSR2)
 
-	go s.Run(*address)
+	ready := make(chan interface{})
+	go s.Run(args.Address, c, ready)
+
+	<-ready
 
 	for sig := range signalCh {
 		switch sig {
 		case syscall.SIGHUP:
 			logrus.Info("Reloading the configuration")
-			c, err := config.LoadConfiguration(*configFile)
+			c, err := config.LoadConfiguration(args.ConfigFile)
 			if err != nil {
 				logrus.Errorf("Failed to load configuration: %s", err)
 				continue
@@ -135,50 +103,47 @@ func toggleDebugLogLevel() {
 	}
 }
 
-// checkArgs ensures that all the arguments make some sense before trying to do anything at all.
-func checkArgs() {
-	if strings.TrimSpace(*configFile) == "" {
-		logrus.Fatalf("Config file is mandatory, please set it through the -config.file argument")
-	}
-	if strings.TrimSpace(*callbackURL) == "" {
-		logrus.Fatalf("Callback URL is mandatory, please set it through the environment CALLBACK_URL variable or with -callback.url")
-	}
-	if u, err := url.ParseRequestURI(*callbackURL); err != nil {
-		logrus.Fatalf("Invalid callback URL '%s': %s", *callbackURL, err)
-	} else {
-		if strings.TrimSpace(u.Scheme) == "" || strings.TrimSpace(u.Path) == "" || strings.TrimSpace(u.Host) == "" {
-			logrus.Fatalf("Invalid callback URL '%s', it should include a path", *callbackURL)
-		}
-	}
-	if len(strings.TrimSpace(*githubUser)) == 0 {
-		logrus.Fatalf("GitHub user is mandatory, please set it through the environment GITHUB_USER variable or with -github.user")
-	}
-	if len(strings.TrimSpace(*githubToken)) == 0 {
-		logrus.Fatalf("GitToken user is mandatory, please set it through the environment GITHUB_TOKEN variable or with -github.token")
-	}
-	if _, err := url.Parse(*githubURL); err != nil {
-		logrus.Fatalf("Invalid github URL '%s': %s", *githubURL, err)
-	}
+func parseArgs() config.Arguments {
+	args := config.Arguments{}
+	flag.StringVar(&args.Address, "listen.address", ":9092", "address in which to listen for webhooks")
+	flag.StringVar(&args.ConfigFile, "config.file", "mirrors.yml", "configuration file")
+	flag.StringVar(&args.CallbackURL, "callback.url", os.Getenv("CALLBACK_URL"), "callback url to report to github for webhooks, must include schema and domain")
+	flag.BoolVar(&args.Debug, "debug", false, "enable debugging log level")
+	flag.BoolVar(&args.DryRun, "dryrun", false, "execute configuration loading, don't actually do anything")
+	flag.StringVar(&args.GithubUser, "github.user", os.Getenv("GITHUB_USER"), "github username, used to configure the webhooks through the API")
+	flag.StringVar(&args.GithubToken, "github.token", os.Getenv("GITHUB_TOKEN"), "github token, used as the password to configure the webhooks through the API")
+	flag.StringVar(&args.GithubURL, "github.url", "https://api.github.com/hub", "github api url to register webhooks")
 
-	if _, err := os.Stat(*repoPath); err != nil {
-		logrus.Fatalf("Repositories path is not accessible: %s", err)
-	}
-	if strings.TrimSpace(*sshkey) != "" {
-		if _, err := os.Stat(*sshkey); err != nil {
-			logrus.Fatalf("SSH Key %s is not accessible", err)
-		}
-	}
-	if *timeoutSeconds <= 0 {
-		logrus.Fatalf("Invalid timeout seconds %d, it should be 1 or higher", *timeoutSeconds)
-	}
+	// flag.StringVar(&args.GitlabUser, "gitlab.user", os.Getenv("GITLAB_USER"), "gitlab username, used to configure the webhooks through the API")
+	// flag.StringVar(&args.GitlabToken, "gitlab.token", os.Getenv("GITLAB_TOKEN"), "gitlab token, used as the password to configure the webhooks through the API")
+	// flag.StringVar(&args.GitlabURL, "gitlab.url", "", "gitlab api url to register webhooks")
+
+	flag.StringVar(&args.WebhooksTarget, "webhooks.target", "github", "Used to define different kinds of webhooks clients, GitHub by default")
+	flag.StringVar(&args.RepositoriesPath, "repositories.path", ".", "local path in which to store cloned repositories")
+	flag.BoolVar(&args.SkipRegistration, "skip.webhooks.registration", false, "don't register webhooks")
+	flag.StringVar(&args.SSHKey, "sshkey", os.Getenv("SSH_KEY"), "ssh key to use to identify to remotes")
+	flag.Uint64Var(&args.TimeoutSeconds, "git.timeout.seconds", 60, "git operations timeout in seconds")
+
+	flag.BoolVar(&args.ShowVersion, "version", false, "print the version and exit")
+
+	flag.Parse()
+
+	return args
 }
 
-func createClient() (webhooks.Client, error) {
+func createClient(args config.Arguments) (webhooks.Client, error) {
 	// TODO: based on webhooksTarget we should create a github client or something else
 	return github.New(github.ClientOpts{
-		User:        *githubUser,
-		Token:       *githubToken,
-		GitHubURL:   *githubURL,
-		CallbackURL: *callbackURL,
+		User:        args.GithubUser,
+		Token:       args.GithubToken,
+		GitHubURL:   args.GithubURL,
+		CallbackURL: args.CallbackURL,
+	})
+}
+
+func setupLogger() {
+	logrus.AddHook(filename.NewHook())
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
 	})
 }

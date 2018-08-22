@@ -2,8 +2,12 @@ package config
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"io/ioutil"
+	neturl "net/url"
+	"os"
+	"strings"
+
+	"github.com/sirupsen/logrus"
 
 	"gitlab.com/yakshaving.art/git-pull-mirror/url"
 	yaml "gopkg.in/yaml.v2"
@@ -22,6 +26,27 @@ type RepositoryConfig struct {
 
 	Target    string `yaml:"target"`
 	TargetURL url.GitURL
+}
+
+// Arguments parsed through user provided flags
+type Arguments struct {
+	Address     string
+	ConfigFile  string
+	CallbackURL string
+	Debug       bool
+
+	GithubUser  string
+	GithubToken string
+	GithubURL   string
+
+	WebhooksTarget   string
+	RepositoriesPath string
+	SkipRegistration bool
+	SSHKey           string
+	TimeoutSeconds   uint64
+
+	DryRun      bool
+	ShowVersion bool
 }
 
 // LoadConfiguration loads the file and parses the origin url, returns a
@@ -53,4 +78,53 @@ func LoadConfiguration(filename string) (Config, error) {
 	}
 
 	return c, nil
+}
+
+// Check runs the arguments structure through a validation. It returns an error if the arguments are invalid.
+func (a Arguments) Check() error {
+	if strings.TrimSpace(a.ConfigFile) == "" {
+		return fmt.Errorf("Config file is mandatory, please set it through the -config.file argument")
+	}
+	if strings.TrimSpace(a.CallbackURL) == "" {
+		return fmt.Errorf("Callback URL is mandatory, please set it through the environment CALLBACK_URL variable or with -callback.url")
+	}
+
+	u, err := neturl.ParseRequestURI(a.CallbackURL)
+	if err != nil {
+		return fmt.Errorf("Invalid callback URL '%s': %s", a.CallbackURL, err)
+	}
+	if strings.TrimSpace(u.Scheme) == "" || strings.TrimSpace(u.Path) == "" || strings.TrimSpace(u.Host) == "" {
+		return fmt.Errorf("Invalid callback URL '%s', it should include a path", a.CallbackURL)
+	}
+
+	if len(strings.TrimSpace(a.GithubUser)) == 0 {
+		return fmt.Errorf("GitHub user is mandatory, please set it through the environment GITHUB_USER variable or with -github.user")
+	}
+	if len(strings.TrimSpace(a.GithubToken)) == 0 {
+		return fmt.Errorf("GitHubToken user is mandatory, please set it through the environment GITHUB_TOKEN variable or with -github.token")
+	}
+
+	u, err = neturl.ParseRequestURI(a.GithubURL)
+	if err != nil {
+		return fmt.Errorf("Invalid GitHub URL '%s': %s", a.GithubURL, err)
+	}
+
+	f, err := os.Stat(a.RepositoriesPath)
+	if err != nil {
+		return fmt.Errorf("Repositories path is not accessible: %s", err)
+	}
+	if !f.IsDir() {
+		return fmt.Errorf("Repositories path folder %s it not a folder", a.RepositoriesPath)
+	}
+
+	if strings.TrimSpace(a.SSHKey) != "" {
+		if _, err := os.Stat(a.SSHKey); err != nil {
+			return fmt.Errorf("SSH Key %s is not accessible", err)
+		}
+	}
+	if a.TimeoutSeconds <= 0 {
+		return fmt.Errorf("Invalid timeout seconds %d, it should be 1 or higher", a.TimeoutSeconds)
+	}
+
+	return nil
 }
