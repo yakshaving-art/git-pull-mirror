@@ -52,8 +52,6 @@ directed to it.
     address in which to listen for webhooks (default ":9092")
 - **-repositories.path** *string*
     local path in which to store cloned repositories (default ".")
-- **-skip.webhooks.registration** *bool*
-    don't register webhooks
 - **-sshkey** *string*
     ssh key to use to identify to remotes
 
@@ -74,8 +72,11 @@ directed to it.
 
 | name | type | help  |
 |---|---|---|
+| github_webhooks_up                            | gauge    | whether the service is ready to receive requests or not |
+| github_webhooks_repo_up                       | gauge    | whether a repo is succeeding or failing to read or write |
 | github_webhooks_git_latency_seconds           | summary  | latency percentiles of git fetch and push operations |
 | github_webhooks_hooks_received_total          | counter  | total count of hooks received |
+| github_webhooks_hooks_retried_total           | counter  | total number of hooks that failed and were retried |
 | github_webhooks_hooks_updated_total           | counter  | total number of repos succefully updated  |
 | github_webhooks_hooks_failed_total            | counter  | total number of repos that failed to update for some reason  |
 | github_webhooks_boot_time_seconds             | gauge    | unix timestamp indicating when the process was started |

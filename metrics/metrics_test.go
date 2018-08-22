@@ -12,12 +12,24 @@ func TestMetricsAreRegistered(t *testing.T) {
 		collector prometheus.Collector
 	}{
 		{
+			"server is up",
+			metrics.ServerIsUp,
+		},
+		{
+			"repo is up",
+			metrics.RepoIsUp,
+		},
+		{
 			"latency seconds",
 			metrics.GitLatencySecondsTotal,
 		},
 		{
 			"hooks accepted",
 			metrics.HooksAcceptedTotal,
+		},
+		{
+			"hook retried",
+			metrics.HooksRetriedTotal,
 		},
 		{
 			"hooks failed",

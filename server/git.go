@@ -10,14 +10,13 @@ import (
 
 	"github.com/jpillora/backoff"
 	"github.com/sirupsen/logrus"
+	"gitlab.com/yakshaving.art/git-pull-mirror/metrics"
 	"gitlab.com/yakshaving.art/git-pull-mirror/url"
-
 	"golang.org/x/crypto/ssh"
-	gitssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
-
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
+	gitssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
 // Remotes names
@@ -231,6 +230,7 @@ func (r Repository) Push() error {
 
 		if err != nil && b.Attempt() < 3 {
 			logrus.Warnf("failed to push to remote repo %s: %s... retrying", r.target, err)
+			metrics.HooksRetriedTotal.WithLabelValues(r.target.String()).Inc()
 			time.Sleep(b.Duration())
 			continue
 		}

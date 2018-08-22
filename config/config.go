@@ -41,7 +41,6 @@ type Arguments struct {
 
 	WebhooksTarget   string
 	RepositoriesPath string
-	SkipRegistration bool
 	SSHKey           string
 	TimeoutSeconds   uint64
 

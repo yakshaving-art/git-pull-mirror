@@ -53,10 +53,9 @@ func main() {
 	}
 
 	s := server.New(client, server.WebHooksServerOptions{
-		GitTimeoutSeconds:        args.TimeoutSeconds,
-		RepositoriesPath:         args.RepositoriesPath,
-		SSHPrivateKey:            args.SSHKey,
-		SkipWebhooksRegistration: args.SkipRegistration,
+		GitTimeoutSeconds: args.TimeoutSeconds,
+		RepositoriesPath:  args.RepositoriesPath,
+		SSHPrivateKey:     args.SSHKey,
 	})
 
 	signalCh := make(chan os.Signal, 1)
@@ -120,7 +119,6 @@ func parseArgs() config.Arguments {
 
 	flag.StringVar(&args.WebhooksTarget, "webhooks.target", "github", "Used to define different kinds of webhooks clients, GitHub by default")
 	flag.StringVar(&args.RepositoriesPath, "repositories.path", ".", "local path in which to store cloned repositories")
-	flag.BoolVar(&args.SkipRegistration, "skip.webhooks.registration", false, "don't register webhooks")
 	flag.StringVar(&args.SSHKey, "sshkey", os.Getenv("SSH_KEY"), "ssh key to use to identify to remotes")
 	flag.Uint64Var(&args.TimeoutSeconds, "git.timeout.seconds", 60, "git operations timeout in seconds")
 
