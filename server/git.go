@@ -49,18 +49,26 @@ func (r Repository) updateRemotes() error {
 		}
 	}
 
-	remote, err = r.repo.Remote(TargetRemote)
-	if err != nil {
-		return fmt.Errorf("Could not obtain %s remote from repo %s, consider wiping the local copy", TargetRemote, r.target)
-	}
-	if remote.Config().URLs[0] != r.target.URI {
-		r.repo.DeleteRemote(TargetRemote)
+	createTarget := func() error {
 		if _, err := r.repo.CreateRemote(&config.RemoteConfig{
 			Name: TargetRemote,
 			URLs: []string{r.target.URI},
 		}); err != nil {
-			return fmt.Errorf("could not update target remote: %s", err)
+			return fmt.Errorf("could not create or update target remote: %s", err)
 		}
+		return nil
+	}
+
+	remote, err = r.repo.Remote(TargetRemote)
+	if err != nil {
+		// remote does not exists, this happens when we start the application without proper credentials
+		logrus.Warnf("Could not find %s remote for repo %s, creating it...", TargetRemote, r.target)
+		return createTarget()
+	}
+
+	if remote.Config().URLs[0] != r.target.URI {
+		r.repo.DeleteRemote(TargetRemote)
+		return createTarget()
 	}
 	return nil
 }
