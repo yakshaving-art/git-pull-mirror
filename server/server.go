@@ -150,6 +150,7 @@ func (ws *WebHooksServer) WebHookHandler(w http.ResponseWriter, r *http.Request)
 	}
 	if !ws.ready {
 		http.Error(w, "Server is not ready to receive requests", http.StatusServiceUnavailable)
+		return
 	}
 
 	if r.Method != "POST" {
