@@ -30,6 +30,7 @@ func TestBuildingAServerAndConfigureWithEmptyConfigWorks(t *testing.T) {
 	s := New(client, WebHooksServerOptions{
 		GitTimeoutSeconds: 10,
 		RepositoriesPath:  tmpDir,
+		Concurrency:       10,
 	})
 	originURL, err := url.Parse("https://github.com/yakshaving-art/git-pull-mirror.git")
 	must(t, "could not parse origin url", err)

@@ -56,6 +56,7 @@ func main() {
 		GitTimeoutSeconds: args.TimeoutSeconds,
 		RepositoriesPath:  args.RepositoriesPath,
 		SSHPrivateKey:     args.SSHKey,
+		Concurrency:       args.Concurrency,
 	})
 
 	signalCh := make(chan os.Signal, 1)
@@ -117,12 +118,14 @@ func parseArgs() config.Arguments {
 	// flag.StringVar(&args.GitlabToken, "gitlab.token", os.Getenv("GITLAB_TOKEN"), "gitlab token, used as the password to configure the webhooks through the API")
 	// flag.StringVar(&args.GitlabURL, "gitlab.url", "", "gitlab api url to register webhooks")
 
-	flag.StringVar(&args.WebhooksTarget, "webhooks.target", "github", "Used to define different kinds of webhooks clients, GitHub by default")
+	flag.StringVar(&args.WebhooksTarget, "webhooks.target", "github", "used to define different kinds of webhooks clients, GitHub by default")
 	flag.StringVar(&args.RepositoriesPath, "repositories.path", ".", "local path in which to store cloned repositories")
 	flag.StringVar(&args.SSHKey, "sshkey", os.Getenv("SSH_KEY"), "ssh key to use to identify to remotes")
 	flag.Uint64Var(&args.TimeoutSeconds, "git.timeout.seconds", 60, "git operations timeout in seconds")
 
 	flag.BoolVar(&args.ShowVersion, "version", false, "print the version and exit")
+
+	flag.IntVar(&args.Concurrency, "concurrency", 4, "how many background tasks to execute concurrently")
 
 	flag.Parse()
 

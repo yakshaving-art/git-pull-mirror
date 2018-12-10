@@ -197,6 +197,20 @@ func TestArguments(t *testing.T) {
 				RepositoriesPath: "/tmp",
 				TimeoutSeconds:   1,
 			},
+			"Invalid concurrency 0, it has to be 1 or higher",
+		},
+		{
+			"with a valid configuration",
+			config.Arguments{
+				ConfigFile:       "/tmp",
+				CallbackURL:      "http://valid.com/somepath",
+				GithubUser:       "pullbot",
+				GithubToken:      "sometoken",
+				GithubURL:        "https://api.github.com/hub",
+				RepositoriesPath: "/tmp",
+				TimeoutSeconds:   1,
+				Concurrency:      1,
+			},
 			"%!s(<nil>)",
 		},
 	}
