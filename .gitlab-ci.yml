@@ -13,10 +13,10 @@ before_script:
 build:
   stage: build
   script:
-    - go build
+    - make build
 
 test:
   stage: test
   coverage: '/^total:\s+\(statements\)\s+(\d+.\d+)%$/'
   script:
-    - go test -v -coverprofile=coverage.out $(go list ./... | grep -v '/vendor/') && go tool cover -func=coverage.out
+    - make test
