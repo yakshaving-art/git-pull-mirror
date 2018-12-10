@@ -14,7 +14,7 @@ build:
     - vendor
   artifacts:
     paths:
-    - hurrdurr
+    - git-pull-mirror
   script:
   - mkdir -p /go/src/gitlab.com/${CI_PROJECT_NAMESPACE}
   - cd /go/src/gitlab.com/${CI_PROJECT_NAMESPACE}
