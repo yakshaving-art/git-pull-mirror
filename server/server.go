@@ -26,6 +26,13 @@ type WebHooksServer struct {
 	running        bool
 	ready          bool
 	callbackPath   string
+
+	tasksCh chan pullTask
+}
+
+type pullTask struct {
+	id   string
+	repo Repository
 }
 
 // WebHooksServerOptions holds server configuration options
@@ -33,6 +40,7 @@ type WebHooksServerOptions struct {
 	GitTimeoutSeconds uint64
 	RepositoriesPath  string
 	SSHPrivateKey     string
+	Concurrency       int
 }
 
 // New returns a new unconfigured webhooks server
@@ -42,6 +50,7 @@ func New(client webhooks.Client, opts WebHooksServerOptions) *WebHooksServer {
 		lock:           &sync.Mutex{},
 		opts:           opts,
 		WebHooksClient: client,
+		tasksCh:        make(chan pullTask, opts.Concurrency),
 	}
 }
 
@@ -122,6 +131,15 @@ func (ws *WebHooksServer) Run(address string, c config.Config, ready chan interf
 	}
 	ws.callbackPath = callback.Path
 
+	// Launch as many worker goroutines as concurrency was declared
+	for i := 0; i < ws.opts.Concurrency; i++ {
+		go func() {
+			for task := range ws.tasksCh {
+				ws.updateRepository(task.id, task.repo)
+			}
+		}()
+	}
+
 	http.HandleFunc(ws.callbackPath, ws.WebHookHandler)
 	logrus.Infof("starting listener on %s", address)
 	ws.running = true
@@ -138,6 +156,9 @@ func (ws *WebHooksServer) Shutdown() {
 
 	// Wait for all the ongoing requests to finish
 	ws.wg.Wait()
+
+	// Close the channel so we don't leak goroutines
+	close(ws.tasksCh)
 
 	logrus.Infof("server stopped")
 }
@@ -199,7 +220,7 @@ func (ws *WebHooksServer) WebHookHandler(w http.ResponseWriter, r *http.Request)
 	metrics.HooksAcceptedTotal.WithLabelValues(hookPayload.GetRepository()).Inc()
 
 	ws.wg.Add(1)
-	go ws.updateRepository(id, repo)
+	ws.tasksCh <- pullTask{id: id, repo: repo}
 
 	w.WriteHeader(http.StatusAccepted)
 }
@@ -213,7 +234,7 @@ func (ws *WebHooksServer) UpdateAll() {
 
 	for _, repo := range ws.repositories {
 		ws.wg.Add(1)
-		go ws.updateRepository("USR2", repo)
+		ws.tasksCh <- pullTask{id: "USR2", repo: repo}
 	}
 }
 

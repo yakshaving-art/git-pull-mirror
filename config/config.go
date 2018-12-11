@@ -46,6 +46,8 @@ type Arguments struct {
 
 	DryRun      bool
 	ShowVersion bool
+
+	Concurrency int
 }
 
 // LoadConfiguration loads the file and parses the origin url, returns a
@@ -123,6 +125,10 @@ func (a Arguments) Check() error {
 	}
 	if a.TimeoutSeconds <= 0 {
 		return fmt.Errorf("Invalid timeout seconds %d, it should be 1 or higher", a.TimeoutSeconds)
+	}
+
+	if a.Concurrency <= 0 {
+		return fmt.Errorf("Invalid concurrency %d, it has to be 1 or higher", a.Concurrency)
 	}
 
 	return nil
