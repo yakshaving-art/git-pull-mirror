@@ -38,6 +38,8 @@ directed to it.
     configuration file (default "mirrors.yml")
 - **-debug**
     enable debugging log level
+- **-pprof.address**
+    address in which to listen for pprof debugging requests
 - **-dryrun**
     execute configuration loading then exit. Don't actually do anything
 - **-git.timeout.seconds** *int*
