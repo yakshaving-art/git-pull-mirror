@@ -3,11 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	_ "gitlab.com/yakshaving.art/git-pull-mirror/metrics"
+	_ "net/http/pprof"
 
 	"github.com/onrik/logrus/filename"
 	"github.com/sirupsen/logrus"
@@ -37,6 +39,11 @@ func main() {
 		logrus.Fatalf("Cannot start, arguments are invalid: %s", err)
 		os.Exit(1)
 	}
+
+	// Start pprof before anything else
+	go func() {
+		logrus.Fatal(http.ListenAndServe(args.PprofAddress, nil))
+	}()
 
 	c, err := config.LoadConfiguration(args.ConfigFile)
 	if err != nil {
@@ -126,6 +133,8 @@ func parseArgs() config.Arguments {
 	flag.BoolVar(&args.ShowVersion, "version", false, "print the version and exit")
 
 	flag.IntVar(&args.Concurrency, "concurrency", 4, "how many background tasks to execute concurrently")
+
+	flag.StringVar(&args.PprofAddress, "pprof.address", "localhost:9093", "address in which to listen for pprof debugging requests")
 
 	flag.Parse()
 
