@@ -36,10 +36,10 @@ directed to it.
     callback url to report to github for webhooks, must include schema and domain (default loaded from env CALLBACK_URL)
 - **-config.file** *string*
     configuration file (default "mirrors.yml")
+- **-concurrency** *int*
+    how many background tasks to execute concurrently (default 4)
 - **-debug**
     enable debugging log level
-- **-pprof.address**
-    address in which to listen for pprof debugging requests
 - **-dryrun**
     execute configuration loading then exit. Don't actually do anything
 - **-git.timeout.seconds** *int*
@@ -52,6 +52,8 @@ directed to it.
     github username, used to configure the webhooks through the API (default loaded from env GITHUB_USER)
 - **-listen.address** *string*
     address in which to listen for webhooks (default ":9092")
+- **-pprof.address** *string*
+    address in which to listen for pprof debugging requests
 - **-repositories.path** *string*
     local path in which to store cloned repositories (default ".")
 - **-sshkey** *string*
