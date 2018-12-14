@@ -30,10 +30,11 @@ type RepositoryConfig struct {
 
 // Arguments parsed through user provided flags
 type Arguments struct {
-	Address     string
-	ConfigFile  string
-	CallbackURL string
-	Debug       bool
+	Address      string
+	ConfigFile   string
+	CallbackURL  string
+	Debug        bool
+	PprofAddress string
 
 	GithubUser  string
 	GithubToken string

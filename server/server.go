@@ -19,6 +19,8 @@ type WebHooksServer struct {
 	wg   *sync.WaitGroup
 	lock *sync.Mutex
 
+	mux *http.ServeMux
+
 	WebHooksClient webhooks.Client
 	opts           WebHooksServerOptions
 	config         config.Config
@@ -140,12 +142,14 @@ func (ws *WebHooksServer) Run(address string, c config.Config, ready chan interf
 		}()
 	}
 
-	http.HandleFunc(ws.callbackPath, ws.WebHookHandler)
+	ws.mux = http.NewServeMux()
+	ws.mux.HandleFunc(ws.callbackPath, ws.WebHookHandler)
+
 	logrus.Infof("starting listener on %s", address)
 	ws.running = true
 
 	ready <- true
-	if err := http.ListenAndServe(address, nil); err != nil {
+	if err := http.ListenAndServe(address, ws.mux); err != nil {
 		logrus.Fatalf("failed to start http server: %s", err)
 	}
 }
