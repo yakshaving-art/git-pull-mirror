@@ -75,7 +75,8 @@ var (
 	})
 )
 
-func init() {
+// Register registers the metrics on the given path and the given http server
+func Register(path string, server *http.ServeMux) {
 	bootTime.Set(float64(time.Now().Unix()))
 	ServerIsUp.Set(0)
 
@@ -90,6 +91,5 @@ func init() {
 	prometheus.MustRegister(ServerIsUp)
 	prometheus.MustRegister(HooksRetriedTotal)
 
-	http.Handle("/metrics", prometheus.Handler())
-
+	server.Handle(path, prometheus.Handler())
 }

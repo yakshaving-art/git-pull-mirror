@@ -1,12 +1,15 @@
 package metrics_test
 
 import (
+	"net/http"
+	"testing"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/yakshaving.art/git-pull-mirror/metrics"
-	"testing"
 )
 
 func TestMetricsAreRegistered(t *testing.T) {
+	metrics.Register("/metrics", http.DefaultServeMux)
 	tt := []struct {
 		name      string
 		collector prometheus.Collector
