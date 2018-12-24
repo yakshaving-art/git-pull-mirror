@@ -8,9 +8,8 @@ import (
 	"testing"
 )
 
-func TestRegisterWebhooks(t *testing.T) {
+func TestRegisterNewWebhooks(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assertEquals(t, r.Method, "PATCH")
 		assertEquals(t, r.URL.Path, "/")
 		assertEquals(t, r.Header.Get("Content-Type"), "application/x-www-form-urlencoded")
 
@@ -23,6 +22,14 @@ func TestRegisterWebhooks(t *testing.T) {
 		assertEquals(t, r.FormValue("hub.mode"), "subscribe")
 		assertEquals(t, r.FormValue("hub.topic"), "https://mygithosing/mygroup/myproject/events/push")
 		assertEquals(t, r.FormValue("hub.callback"), "http://myhostname/mypath")
+
+		switch r.Method {
+		case "PATCH":
+			http.Error(w, "Not found", http.StatusNotFound)
+		case "POST":
+		default:
+			t.Fatalf("invalid method %s", r.Method)
+		}
 	}))
 
 	client, err := github.New(github.ClientOpts{
