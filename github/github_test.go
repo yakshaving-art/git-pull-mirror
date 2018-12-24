@@ -10,7 +10,7 @@ import (
 
 func TestRegisterWebhooks(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assertEquals(t, r.Method, "POST")
+		assertEquals(t, r.Method, "PATCH")
 		assertEquals(t, r.URL.Path, "/")
 		assertEquals(t, r.Header.Get("Content-Type"), "application/x-www-form-urlencoded")
 
