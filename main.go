@@ -42,6 +42,7 @@ func main() {
 
 	// Start pprof before anything else
 	go func() {
+		logrus.Infof("starting pprof listener on %s", args.PprofAddress)
 		logrus.Fatal(http.ListenAndServe(args.PprofAddress, nil))
 	}()
 

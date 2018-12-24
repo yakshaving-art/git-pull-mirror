@@ -144,6 +144,7 @@ func (ws *WebHooksServer) Run(address string, c config.Config, ready chan interf
 
 	ws.mux = http.NewServeMux()
 	ws.mux.HandleFunc(ws.callbackPath, ws.WebHookHandler)
+	metrics.Register("/metrics", ws.mux)
 
 	logrus.Infof("starting listener on %s", address)
 	ws.running = true
