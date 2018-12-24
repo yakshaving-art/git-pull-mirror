@@ -56,16 +56,27 @@ func (c Client) RegisterWebhook(uri giturl.GitURL) error {
 	form.Add("hub.topic", fmt.Sprintf("https://%s/events/push", uri))
 	form.Add("hub.callback", c.opts.CallbackURL)
 
-	req, err := http.NewRequest("POST", c.opts.GitHubURL, strings.NewReader(form.Encode()))
-	if err != nil {
-		return fmt.Errorf("could not create request for webhook: %s", err)
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(c.opts.User, c.opts.Token)
+	do := func(method string) (*http.Response, error) {
+		req, err := http.NewRequest(method, c.opts.GitHubURL, strings.NewReader(form.Encode()))
+		if err != nil {
+			return nil, fmt.Errorf("could not create request for webhook: %s", err)
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.SetBasicAuth(c.opts.User, c.opts.Token)
 
-	resp, err := http.DefaultClient.Do(req)
+		return http.DefaultClient.Do(req)
+	}
+
+	resp, err := do("PATCH")
 	if err != nil {
-		return fmt.Errorf("webhook creation request failed hard: %s", err)
+		return fmt.Errorf("failed to patch webhook: %s", err)
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		resp, err = do("POST")
+		if err != nil {
+			return fmt.Errorf("failed to create new webhook: %s", err)
+		}
 	}
 
 	switch resp.StatusCode {
